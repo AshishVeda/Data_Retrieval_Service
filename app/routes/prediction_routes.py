@@ -3,11 +3,12 @@ from app.services.stock_service import StockService
 from app.services.news_service import NewsService
 from app.services.social_service import SocialService
 from app.services.llm_service import LLMService
+from app.services.finnhub_service import FinnhubService
 import logging
 from typing import Dict, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 prediction_bp = Blueprint('prediction', __name__)
@@ -16,14 +17,9 @@ prediction_bp = Blueprint('prediction', __name__)
 def process_prediction_query():
     """Process user query for stock prediction"""
     try:
-        # Debug session information
-        logger.debug(f"Session data: {dict(session)}")
-        logger.debug(f"Session ID: {session.get('_id')}")
-        logger.debug(f"User ID in session: {session.get('user_id')}")
-        
         # Check authentication
         if 'user_id' not in session:
-            logger.warning("No user_id found in session")
+            logger.warning("User authentication required")
             return jsonify({
                 'status': 'error',
                 'message': 'Authentication required. Please login first.'
@@ -50,44 +46,77 @@ def process_prediction_query():
         stock_service = StockService()
         news_service = NewsService()
         social_service = SocialService()
+        finnhub_service = FinnhubService()
         llm_service = LLMService()
 
         # Step 1: Data Fetching
-        logger.info(f"Step 1: Fetching data for {symbol}")
+        logger.info(f"Fetching data for {symbol}")
         
         # Fetch historical prices
         historical_data = stock_service.get_historical_prices(symbol)
         if historical_data['status'] == 'error':
             return jsonify(historical_data), 500
 
-        # Fetch Reddit posts
+        # Fetch Reddit posts - note the SocialService now returns data directly, not with status wrapper
         reddit_data = social_service.fetch_reddit_posts(symbol)
-        if reddit_data['status'] == 'error':
-            return jsonify(reddit_data), 500
+        
+        # Check for Finnhub news in ChromaDB - limit to 10 articles
+        finnhub_news_data = finnhub_service.get_stored_finnhub_news(symbol, limit=10)
+        
+        # Check if we have enough recent Finnhub news data (at least covering the past 3 weeks)
+        three_weeks_ago = (datetime.now() - timedelta(weeks=3)).isoformat()
+        has_enough_data = False
+        
+        if finnhub_news_data['status'] == 'success' and finnhub_news_data['data']:
+            # Check if we have data from 3 weeks ago
+            dates = [item.get('published', '') for item in finnhub_news_data['data']]
+            oldest_date = min(dates) if dates else ''
+            
+            if oldest_date and oldest_date <= three_weeks_ago:
+                # We have data going back at least 3 weeks
+                has_enough_data = True
+            
+        # If we don't have enough data, fetch fresh data from Finnhub
+        if not has_enough_data:
+            logger.info(f"Fetching fresh Finnhub news data for {symbol}")
+            fetch_result = finnhub_service.fetch_company_news(symbol, weeks=3)
+            
+            if fetch_result['status'] == 'success':
+                # Get the updated data from the database
+                finnhub_news_data = finnhub_service.get_stored_finnhub_news(symbol, 10)
+            else:
+                logger.warning(f"Failed to fetch Finnhub news data")
+        
+        # Handle errors in Finnhub news fetching
+        if finnhub_news_data['status'] == 'error':
+            finnhub_news_data = {'status': 'success', 'data': []}
 
-        # Fetch company news
-        news_data = news_service.get_company_news(symbol)
-        if news_data['status'] == 'error':
-            return jsonify(news_data), 500
-
-        # Step 2: Sentiment Analysis
-        logger.info(f"Step 2: Analyzing sentiment for {symbol}")
-        sentiment_data = social_service.analyze_sentiment(reddit_data['data']['posts'])
-        if sentiment_data['status'] == 'error':
-            return jsonify(sentiment_data), 500
-
-        # Step 3: Prepare LLM Prompt
-        logger.info(f"Step 3: Preparing LLM prompt for {symbol}")
-        prompt_data = {
-            'symbol': symbol,
-            'historical_data': historical_data.get('data', {}),
-            'news_data': news_data.get('data', []),
-            'sentiment_data': sentiment_data.get('data', {}),
-            'user_query': user_query
+        # Step 2: Sentiment Analysis is now done within the fetch_reddit_posts method
+        logger.info(f"Analyzing sentiment for {symbol}")
+        
+        # The sentiment data is already in the reddit_data
+        sentiment_data = {
+            'posts': reddit_data.get('posts', []),
+            'sentiment_summary': reddit_data.get('sentiment_summary', {})
         }
 
-        # Generate prompt
-        prompt = llm_service.prepare_prompt(prompt_data)
+        # Step 3: Prepare LLM Prompt
+        logger.info(f"Generating prediction prompt for {symbol}")
+        
+        # Generate prompt with the data
+        prompt = llm_service.generate_prediction_prompt(
+            {
+                'symbol': symbol,
+                'metadata': {
+                    'raw_data': {
+                        'historical': historical_data.get('data', {}),
+                        'finnhub_news': finnhub_news_data.get('data', []),
+                        'sentiment': sentiment_data
+                    }
+                }
+            }, 
+            user_query
+        )
 
         # Return prompt and metadata
         return jsonify({
@@ -99,8 +128,8 @@ def process_prediction_query():
                     'timestamp': datetime.now().isoformat(),
                     'raw_data': {
                         'historical': historical_data.get('data', {}),
-                        'news': news_data.get('data', []),
-                        'sentiment': sentiment_data.get('data', {})
+                        'finnhub_news': finnhub_news_data.get('data', []),
+                        'sentiment': sentiment_data
                     }
                 }
             },

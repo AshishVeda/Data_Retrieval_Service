@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "5001:5000"
+    environment:
+      - FLASK_APP=app
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
+      - REDDIT_CLIENT_ID=${REDDIT_CLIENT_ID}
+      - REDDIT_CLIENT_SECRET=${REDDIT_CLIENT_SECRET}
+      - REDDIT_USER_AGENT=${REDDIT_USER_AGENT}
+      - AWS_REGION=${AWS_REGION}
+      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
+      - COGNITO_APP_CLIENT_ID=${COGNITO_APP_CLIENT_ID}
+      - COGNITO_APP_CLIENT_SECRET=${COGNITO_APP_CLIENT_SECRET}
+      - FINNHUB_API_KEY=${FINNHUB_API_KEY}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - RDS_HOST=db  # Use the db service name for local development
+      - RDS_USER=root
+      - RDS_PASSWORD=password
+      - RDS_DB_NAME=stocks_db
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+    restart: always
+    networks:
+      - stocks-network
+
+  db:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=stocks_db
+    volumes:
+      - mysql-data:/var/lib/mysql
+    restart: always
+    networks:
+      - stocks-network
+
+volumes:
+  mysql-data:
+
+networks:
+  stocks-network:
+    driver: bridge 

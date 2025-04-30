@@ -4,7 +4,7 @@ import logging
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class VectorService:
@@ -27,7 +27,6 @@ class VectorService:
         """Store news items in ChromaDB and clean up old news"""
         try:
             if not news_items:
-                logger.warning("No news items to store")
                 return False
 
             # First, clean up news older than 3 days
@@ -43,19 +42,29 @@ class VectorService:
                 news_id = f"{item['symbol']}_{item['published']}_{hash(item['title'])}"
                 
                 # Combine title and summary for embedding
-                document = f"{item['title']} {item['summary']}"
+                document_text = item['title']
+                if 'summary' in item:
+                    document_text += " " + item['summary']
                 
                 # Prepare metadata
                 metadata = {
                     'symbol': item['symbol'],
                     'title': item['title'],
                     'published': item['published'],
-                    'url': item['link'],
-                    'timestamp': item['timestamp']
+                    'source': item.get('source', 'Unknown'),
+                    'timestamp': item.get('timestamp', datetime.now().isoformat())
                 }
+                
+                # Handle url/link field variations
+                if 'url' in item:
+                    metadata['url'] = item['url']
+                elif 'link' in item:
+                    metadata['url'] = item['link']
+                else:
+                    metadata['url'] = ''
 
                 ids.append(news_id)
-                documents.append(document)
+                documents.append(document_text)
                 metadatas.append(metadata)
 
             # Add to ChromaDB
@@ -65,7 +74,6 @@ class VectorService:
                 ids=ids
             )
 
-            logger.info(f"Successfully stored {len(news_items)} news items")
             return True
 
         except Exception as e:
@@ -75,18 +83,13 @@ class VectorService:
     def get_news_by_symbol(self, symbol: str, limit: int = 10) -> List[Dict]:
         """Retrieve news items for a specific symbol"""
         try:
-            # Get current time and 3 days ago
-            now = datetime.now()
-            three_days_ago = (now - timedelta(days=3)).isoformat()
-
-            # Query with time filter
+            # Get all items to ensure we're not missing any
+            if limit > 1000:
+                limit = 1000
+            
+            # Query with just the symbol filter, without date filtering
             results = self.news_collection.get(
-                where={
-                    "$and": [
-                        {"symbol": symbol},
-                        {"timestamp": {"$gte": three_days_ago}}
-                    ]
-                },
+                where={"symbol": symbol},
                 limit=limit
             )
 
@@ -96,12 +99,12 @@ class VectorService:
                 news_items.append({
                     'id': results['ids'][i],
                     'title': results['metadatas'][i]['title'],
-                    'url': results['metadatas'][i]['url'],
+                    'url': results['metadatas'][i].get('url', results['metadatas'][i].get('link', '')),
                     'published': results['metadatas'][i]['published'],
+                    'source': results['metadatas'][i].get('source', 'Unknown'),
                     'symbol': results['metadatas'][i]['symbol']
                 })
 
-            logger.info(f"Retrieved {len(news_items)} news items for {symbol}")
             return news_items
 
         except Exception as e:
@@ -143,7 +146,6 @@ class VectorService:
                     'similarity': results['distances'][0][i]
                 })
 
-            logger.info(f"Found {len(similar_news)} similar news items")
             return similar_news
 
         except Exception as e:
@@ -176,7 +178,6 @@ class VectorService:
         """Store social media data in ChromaDB"""
         try:
             if not social_data:
-                logger.warning("No social media data to store")
                 return False
 
             # Prepare data for ChromaDB
@@ -215,7 +216,6 @@ class VectorService:
                 ids=ids
             )
 
-            logger.info(f"Successfully stored {len(social_data)} social media posts")
             return True
 
         except Exception as e:
@@ -253,7 +253,6 @@ class VectorService:
                     'comment_count': results['metadatas'][i]['comment_count']
                 })
 
-            logger.info(f"Retrieved {len(social_data)} social media posts for {symbol}")
             return social_data
 
         except Exception as e:

@@ -1,6 +1,6 @@
 import requests  # Import for HTTP requests
 from flask import Blueprint, request, jsonify  # Flask imports
-from bs4 import BeautifulSoup  # Import for web scraping
+# from bs4 import BeautifulSoup  # Import for web scraping
 import os
 from dotenv import load_dotenv  # Load environment variables
 import xmltodict

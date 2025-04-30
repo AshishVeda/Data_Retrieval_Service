@@ -5,7 +5,7 @@ import jwt
 from app.config import Config
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 user_bp = Blueprint('user', __name__)
@@ -30,6 +30,18 @@ def validate_request_data(*required_fields):
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+def login_required(f):
+    """Decorator to require login for routes"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({
+                'status': 'error',
+                'message': 'Authentication required'
+            }), 401
+        return f(*args, **kwargs)
+    return decorated_function
 
 @user_bp.route('/register', methods=['POST'])
 @validate_request_data('username', 'password', 'email')
@@ -98,7 +110,8 @@ def login():
                 'status': 'success',
                 'data': {
                     'user_id': session['user_id'],
-                    'username': username
+                    'username': username,
+                    'profile': result.get('user_data')
                 },
                 'message': 'Login successful'
             })
@@ -118,6 +131,7 @@ def login():
 
 @user_bp.route('/logout', methods=['POST'])
 def logout():
+    """Logout user"""
     try:
         # Clear the session
         session.clear()
@@ -135,13 +149,18 @@ def logout():
 
 @user_bp.route('/check-auth', methods=['GET'])
 def check_auth():
+    """Check if user is authenticated"""
     try:
         if 'user_id' in session:
+            # Get user data from the database
+            user_data = user_service.get_user_by_id(session['user_id'])
+            
             return jsonify({
                 'status': 'success',
                 'data': {
                     'user_id': session['user_id'],
-                    'username': session['username']
+                    'username': session['username'],
+                    'profile': user_data.get('data', {})
                 },
                 'message': 'User is authenticated'
             })
@@ -152,6 +171,67 @@ def check_auth():
             }), 401
     except Exception as e:
         logger.error(f"Error in check_auth: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@user_bp.route('/profile', methods=['GET'])
+@login_required
+def get_profile():
+    """Get user profile"""
+    try:
+        user_id = session.get('user_id')
+        user_data = user_service.get_user_by_id(user_id)
+        
+        if user_data['status'] == 'success':
+            return jsonify(user_data)
+        
+        return jsonify(user_data), 404
+    except Exception as e:
+        logger.error(f"Error getting user profile: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@user_bp.route('/preferences', methods=['GET'])
+@login_required
+def get_preferences():
+    """Get user preferences"""
+    try:
+        user_id = session.get('user_id')
+        preferences = user_service.get_user_preferences(user_id)
+        
+        if preferences['status'] == 'success':
+            return jsonify(preferences)
+        
+        return jsonify(preferences), 404
+    except Exception as e:
+        logger.error(f"Error getting user preferences: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@user_bp.route('/preferences', methods=['PUT'])
+@login_required
+@validate_request_data('preferences')
+def update_preferences():
+    """Update user preferences"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        preferences = data.get('preferences', {})
+        
+        result = user_service.update_user_preferences(user_id, preferences)
+        
+        if result['status'] == 'success':
+            return jsonify(result)
+        
+        return jsonify(result), 400
+    except Exception as e:
+        logger.error(f"Error updating user preferences: {str(e)}")
         return jsonify({
             'status': 'error',
             'message': str(e)
