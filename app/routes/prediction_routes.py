@@ -4,6 +4,7 @@ from app.services.news_service import NewsService
 from app.services.social_service import SocialService
 from app.services.llm_service import LLMService
 from app.services.finnhub_service import FinnhubService
+from app.services.chat_history_service import chat_history_service
 import logging
 from typing import Dict, Optional
 from datetime import datetime, timedelta
@@ -24,6 +25,9 @@ def process_prediction_query():
                 'status': 'error',
                 'message': 'Authentication required. Please login first.'
             }), 401
+
+        # Get user ID from session
+        user_id = session.get('user_id')
 
         # Validate request
         data = request.get_json()
@@ -100,10 +104,10 @@ def process_prediction_query():
             'sentiment_summary': reddit_data.get('sentiment_summary', {})
         }
 
-        # Step 3: Prepare LLM Prompt
-        logger.info(f"Generating prediction prompt for {symbol}")
+        # Step 3: Prepare LLM Prompt with chat history
+        logger.info(f"Generating prediction prompt for {symbol} with chat history")
         
-        # Generate prompt with the data
+        # Generate prompt with the data and include user ID for chat history
         prompt = llm_service.generate_prediction_prompt(
             {
                 'symbol': symbol,
@@ -115,28 +119,80 @@ def process_prediction_query():
                     }
                 }
             }, 
-            user_query
+            user_query,
+            user_id  # Pass the user_id for chat history
         )
+
+        # Prepare response with metadata
+        response_data = {
+            'prompt': prompt,
+            'metadata': {
+                'steps_completed': ['data_fetch', 'sentiment_analysis', 'prompt_generation'],
+                'timestamp': datetime.now().isoformat(),
+                'raw_data': {
+                    'historical': historical_data.get('data', {}),
+                    'finnhub_news': finnhub_news_data.get('data', []),
+                    'sentiment': sentiment_data
+                }
+            }
+        }
+
+        # Store the query and response in chat history
+        try:
+            # Store mock response for now (since we're just generating a prompt)
+            chat_response = "This is a placeholder response that would normally come from the LLM."
+            
+            # Store in chat history
+            chat_history_service.store_chat(
+                user_id, 
+                user_query, 
+                chat_response,
+                metadata={
+                    'symbol': symbol,
+                    'timestamp': datetime.now().isoformat()
+                }
+            )
+            logger.info(f"Stored chat history for user {user_id}")
+        except Exception as e:
+            logger.error(f"Error storing chat history: {str(e)}")
 
         # Return prompt and metadata
         return jsonify({
             'status': 'success',
-            'data': {
-                'prompt': prompt,
-                'metadata': {
-                    'steps_completed': ['data_fetch', 'sentiment_analysis', 'prompt_generation'],
-                    'timestamp': datetime.now().isoformat(),
-                    'raw_data': {
-                        'historical': historical_data.get('data', {}),
-                        'finnhub_news': finnhub_news_data.get('data', []),
-                        'sentiment': sentiment_data
-                    }
-                }
-            },
+            'data': response_data,
             'message': 'Prompt generated successfully'
         })
     except Exception as e:
         logger.error(f"Error in prediction query: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@prediction_bp.route('/chat-history', methods=['GET'])
+def get_chat_history():
+    """Get chat history for the current user"""
+    try:
+        # Check authentication
+        if 'user_id' not in session:
+            logger.warning("User authentication required")
+            return jsonify({
+                'status': 'error',
+                'message': 'Authentication required. Please login first.'
+            }), 401
+
+        # Get user ID from session
+        user_id = session.get('user_id')
+        
+        # Get limit parameter (default to 10)
+        limit = request.args.get('limit', default=10, type=int)
+        
+        # Get chat history
+        result = chat_history_service.get_chat_history(user_id, limit)
+        
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error retrieving chat history: {str(e)}")
         return jsonify({
             'status': 'error',
             'message': str(e)

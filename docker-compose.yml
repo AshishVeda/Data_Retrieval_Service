@@ -19,6 +19,9 @@ services:
       - COGNITO_APP_CLIENT_SECRET=${COGNITO_APP_CLIENT_SECRET}
       - FINNHUB_API_KEY=${FINNHUB_API_KEY}
       - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - DYNAMODB_CHAT_TABLE=${DYNAMODB_CHAT_TABLE}
       - RDS_HOST=db  # Use the db service name for local development
       - RDS_USER=root
       - RDS_PASSWORD=password
@@ -44,8 +47,20 @@ services:
     networks:
       - stocks-network
 
+  # Local DynamoDB for development
+  dynamodb-local:
+    image: amazon/dynamodb-local
+    ports:
+      - "8000:8000"
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data"
+    volumes:
+      - dynamodb-data:/home/dynamodblocal/data
+    networks:
+      - stocks-network
+
 volumes:
   mysql-data:
+  dynamodb-data:
 
 networks:
   stocks-network:

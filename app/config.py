@@ -20,4 +20,9 @@ class Config:
     # Alpha Vantage API Configuration
     ALPHA_VANTAGE_API_KEY = os.getenv('ALPHA_VANTAGE_API_KEY', 'demo')
     
+    # AWS DynamoDB Configuration
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+    DYNAMODB_CHAT_TABLE = os.getenv('DYNAMODB_CHAT_TABLE', 'stock_app_chat_history')
+    
     # Other configuration... 

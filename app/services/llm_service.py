@@ -1,6 +1,8 @@
 import logging
 from typing import Dict
 import os
+from app.services.chat_history_service import chat_history_service
+from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -145,8 +147,8 @@ class LLMService:
             logger.error(f"Error summarizing sentiment data: {str(e)}")
             return "Error summarizing sentiment data"
 
-    def generate_prediction_prompt(self, data: Dict, user_query: str) -> str:
-        """Generate a prompt for the LLM based on the data and user query"""
+    def generate_prediction_prompt(self, data: Dict, user_query: str, user_id=None) -> str:
+        """Generate a prompt for the LLM based on the data and user query, with chat history if available"""
         try:
             # Extract symbol
             symbol = data.get('symbol', 'the stock')
@@ -179,10 +181,28 @@ class LLMService:
                     avg_change = sum(price_changes) / len(price_changes) if price_changes else 0
                     current_price = recent_prices[-1] if recent_prices else 0
                     
+                    # Fix dates: Use current year (2025) instead of dates from historical data
+                    # Get the current date
+                    current_date = datetime.now()
+                    
+                    # Create dates going back from today
+                    current_year_dates = []
+                    for i in range(len(recent_dates)):
+                        # Generate a date i days before current date
+                        date = current_date - timedelta(days=i)
+                        # Skip weekends (Saturday = 5, Sunday = 6)
+                        while date.weekday() >= 5:  # Skip weekends
+                            date = date - timedelta(days=1)
+                        # Format as YYYY-MM-DD
+                        current_year_dates.append(date.strftime('%Y-%m-%d'))
+                    
+                    # Reverse the list to get chronological order
+                    current_year_dates.reverse()
+                    
                     historical_summary = f"""
                     Recent Price Movement:
                     - Last 5 days prices: {', '.join([f'${p:.2f}' for p in recent_prices])}
-                    - Last 5 days dates: {', '.join(recent_dates)}
+                    - Last 5 days dates: {', '.join(current_year_dates)}
                     - Average daily change: {avg_change:.2f}%
                     - Current price: ${current_price:.2f}
                     """
@@ -207,6 +227,17 @@ class LLMService:
                     if isinstance(item, dict):
                         title = item.get('title', 'No title')
                         published = item.get('published', '')
+                        
+                        # Update published date to current year if it's from a previous year
+                        try:
+                            pub_date = datetime.fromisoformat(published.replace('Z', '+00:00'))
+                            if pub_date.year < current_date.year:
+                                # Keep month/day but update year to current year
+                                pub_date = pub_date.replace(year=current_date.year)
+                                published = pub_date.isoformat()
+                        except Exception as e:
+                            logger.warning(f"Could not parse news date: {published}, {str(e)}")
+                            
                         news_summary += f"- {title} - {published}\n"
             
             # Format sentiment data - updated to handle the new format from SocialService
@@ -242,9 +273,26 @@ class LLMService:
                                 polarity = post.get('sentiment', {}).get('polarity', 0)
                                 sentiment_summary += f"- {title} (Score: {score}, Sentiment: {polarity:.2f})\n"
             
+            # Get chat history if user_id is provided
+            chat_history_text = ""
+            if user_id:
+                try:
+                    history_result = chat_history_service.get_chat_history(user_id, limit=5)
+                    
+                    if history_result.get('status') == 'success' and history_result.get('data'):
+                        chat_history = history_result.get('data', [])
+                        chat_history_text = chat_history_service.format_chat_history_for_prompt(chat_history)
+                        
+                        if chat_history_text:
+                            chat_history_text = f"\nPrevious Conversation History:\n{chat_history_text}\n"
+                except Exception as e:
+                    logger.error(f"Error retrieving chat history for prompt: {str(e)}")
+            
             # Generate the final prompt
+            current_date_str = current_date.strftime('%B %d, %Y')
+            
             prompt = f"""
-            Analyze the following data for {symbol} and provide a detailed prediction:
+            Today is {current_date_str}. Analyze the following data for {symbol} and provide a detailed prediction:
 
             1. Historical Data:
             {historical_summary}
@@ -254,7 +302,7 @@ class LLMService:
 
             3. Reddit Social Media Sentiment:
             {sentiment_summary}
-
+            {chat_history_text}
             User Query: {user_query}
 
             Please provide:
