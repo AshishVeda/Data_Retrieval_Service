@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 class DynamoDBService:
     def __init__(self):
         """Initialize the DynamoDB service with AWS credentials"""
+        # Connect directly to AWS DynamoDB
         self.dynamodb = boto3.resource(
             'dynamodb',
             region_name=Config.AWS_REGION,
@@ -18,7 +19,7 @@ class DynamoDBService:
             aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY
         )
         
-        # Check if the table exists, if not create it
+        # Set the table name
         self.table_name = Config.DYNAMODB_CHAT_TABLE
         self._ensure_table_exists()
         
@@ -33,7 +34,7 @@ class DynamoDBService:
             if self.table_name not in existing_tables:
                 logger.info(f"Creating DynamoDB table: {self.table_name}")
                 
-                # Create the table
+                # Create the table in AWS
                 table = self.dynamodb.create_table(
                     TableName=self.table_name,
                     KeySchema=[
@@ -54,7 +55,7 @@ class DynamoDBService:
                 table.meta.client.get_waiter('table_exists').wait(TableName=self.table_name)
                 logger.info(f"Table {self.table_name} created successfully")
             else:
-                logger.info(f"Table {self.table_name} already exists")
+                logger.info(f"Table {self.table_name} already exists in AWS DynamoDB")
                 
         except Exception as e:
             logger.error(f"Error creating DynamoDB table: {str(e)}")
