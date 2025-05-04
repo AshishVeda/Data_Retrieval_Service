@@ -9,6 +9,7 @@ import logging
 from typing import Dict, Optional
 from datetime import datetime, timedelta
 from app.services.llm_endpoint import generate_prediction
+from app.routes.user_routes import jwt_required  # Import the jwt_required decorator
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -16,19 +17,12 @@ logger = logging.getLogger(__name__)
 prediction_bp = Blueprint('prediction', __name__)
 
 @prediction_bp.route('/query', methods=['POST'])
+@jwt_required
 def process_prediction_query():
     """Process user query for stock prediction"""
     try:
-        # Check authentication
-        if 'user_id' not in session:
-            logger.warning("User authentication required")
-            return jsonify({
-                'status': 'error',
-                'message': 'Authentication required. Please login first.'
-            }), 401
-
-        # Get user ID from session
-        user_id = session.get('user_id')
+        # Get user ID from request.user (set by the jwt_required decorator)
+        user_id = request.user['user_id']
 
         # Validate request
         data = request.get_json()
@@ -173,19 +167,12 @@ def process_prediction_query():
         }), 500
 
 @prediction_bp.route('/chat-history', methods=['GET'])
+@jwt_required
 def get_chat_history():
     """Get chat history for the current user"""
     try:
-        # Check authentication
-        if 'user_id' not in session:
-            logger.warning("User authentication required")
-            return jsonify({
-                'status': 'error',
-                'message': 'Authentication required. Please login first.'
-            }), 401
-
-        # Get user ID from session
-        user_id = session.get('user_id')
+        # Get user ID from request.user (set by the jwt_required decorator)
+        user_id = request.user['user_id']
         
         # Get limit parameter (default to 10)
         limit = request.args.get('limit', default=10, type=int)

@@ -6,6 +6,7 @@ import base64
 import hashlib
 import logging
 from app.database import db
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +114,7 @@ class UserService:
             }
 
     def login(self, username, password):
-        """Authenticate a user and return tokens"""
+        """Authenticate a user and return JWT tokens from Cognito"""
         try:
             response = self.client.initiate_auth(
                 ClientId=self.client_id,
@@ -128,23 +129,67 @@ class UserService:
             # Get user info from RDS
             user_data = self._get_user_from_rds(username)
             
+            # Extract tokens from response
+            access_token = response['AuthenticationResult']['AccessToken']
+            id_token = response['AuthenticationResult']['IdToken'] 
+            refresh_token = response['AuthenticationResult']['RefreshToken']
+            expires_in = response['AuthenticationResult']['ExpiresIn']
+            
             return {
                 'status': 'success',
                 'message': 'Login successful',
                 'user_id': user_data.get('id') if user_data else None,
-                'cognito_id': response['AuthenticationResult']['IdToken'],
-                'user_data': user_data,
-                'tokens': {
-                    'access_token': response['AuthenticationResult']['AccessToken'],
-                    'id_token': response['AuthenticationResult']['IdToken'],
-                    'refresh_token': response['AuthenticationResult']['RefreshToken']
-                }
+                'username': username,
+                'email': user_data.get('email') if user_data else None,
+                'access_token': access_token,
+                'id_token': id_token,
+                'refresh_token': refresh_token,
+                'expires_in': expires_in
             }
         except ClientError as e:
             return {
                 'status': 'error',
                 'message': str(e)
             }
+    
+    def refresh_token(self, refresh_token):
+        """Refresh the user's JWT tokens"""
+        try:
+            response = self.client.initiate_auth(
+                ClientId=self.client_id,
+                AuthFlow='REFRESH_TOKEN_AUTH',
+                AuthParameters={
+                    'REFRESH_TOKEN': refresh_token,
+                    'SECRET_HASH': self._get_secret_hash(self._get_username_from_refresh_token(refresh_token))
+                }
+            )
+            
+            return {
+                'status': 'success',
+                'message': 'Token refreshed successfully',
+                'access_token': response['AuthenticationResult']['AccessToken'],
+                'id_token': response['AuthenticationResult']['IdToken'],
+                'expires_in': response['AuthenticationResult']['ExpiresIn']
+            }
+        except ClientError as e:
+            return {
+                'status': 'error',
+                'message': str(e)
+            }
+    
+    def _get_username_from_refresh_token(self, refresh_token):
+        """Extract username from refresh token"""
+        try:
+            # This is a placeholder - in real implementation, you would need to 
+            # use the refresh token to get the username, possibly by making a Cognito API call
+            # or by having stored the username-token mapping
+            user_data = db.query("SELECT username FROM users WHERE refresh_token = %s", (refresh_token,))
+            if user_data and len(user_data) > 0:
+                return user_data[0]['username']
+            return None
+        except Exception as e:
+            logger.error(f"Error extracting username from refresh token: {str(e)}")
+            return None
     
     def _get_user_from_rds(self, username):
         """Get user data from RDS"""

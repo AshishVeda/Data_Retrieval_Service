@@ -8,6 +8,7 @@ from app.services.llm_service import LLMService
 from app.services.chat_history_service import chat_history_service
 from app.services.llm_endpoint import generate_prediction
 from app import cache
+from app.routes.user_routes import jwt_required  # Import the jwt_required decorator
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -23,17 +24,12 @@ def get_cache_key(user_id, symbol):
     return f"multistep_prediction:{user_id}:{symbol}"
 
 @multistep_prediction_bp.route('/historical', methods=['POST'])
+@jwt_required
 def fetch_historical():
     """Step 1: Fetch historical stock data (3 weeks)"""
     try:
-        # Verify user authentication
-        if 'user_id' not in session:
-            return jsonify({
-                'status': 'error',
-                'message': 'Authentication required'
-            }), 401
-            
-        user_id = session.get('user_id')
+        # Get user ID from request.user (set by the jwt_required decorator)
+        user_id = request.user['user_id']
         
         # Parse request
         data = request.get_json()
@@ -107,17 +103,12 @@ def fetch_historical():
         }), 500
 
 @multistep_prediction_bp.route('/news', methods=['POST'])
+@jwt_required
 def fetch_news():
     """Step 2: Fetch 10 relevant news articles from the last 3 weeks"""
     try:
-        # Verify user authentication
-        if 'user_id' not in session:
-            return jsonify({
-                'status': 'error',
-                'message': 'Authentication required'
-            }), 401
-            
-        user_id = session.get('user_id')
+        # Get user ID from request.user (set by the jwt_required decorator)
+        user_id = request.user['user_id']
         
         # Parse request
         data = request.get_json()
@@ -188,17 +179,12 @@ def fetch_news():
         }), 500
 
 @multistep_prediction_bp.route('/socialmedia', methods=['POST'])
+@jwt_required
 def fetch_social():
     """Step 3: Fetch and analyze social media data (top 10 Reddit posts)"""
     try:
-        # Verify user authentication
-        if 'user_id' not in session:
-            return jsonify({
-                'status': 'error',
-                'message': 'Authentication required'
-            }), 401
-            
-        user_id = session.get('user_id')
+        # Get user ID from request.user (set by the jwt_required decorator)
+        user_id = request.user['user_id']
         
         # Parse request
         data = request.get_json()
@@ -273,17 +259,12 @@ def fetch_social():
         }), 500
 
 @multistep_prediction_bp.route('/result', methods=['POST'])
+@jwt_required
 def generate_result():
     """Step 4: Generate final prediction from all collected data"""
     try:
-        # Verify user authentication
-        if 'user_id' not in session:
-            return jsonify({
-                'status': 'error',
-                'message': 'Authentication required'
-            }), 401
-            
-        user_id = session.get('user_id')
+        # Get user ID from request.user (set by the jwt_required decorator)
+        user_id = request.user['user_id']
         
         # Parse request
         data = request.get_json()
