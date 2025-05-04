@@ -8,6 +8,7 @@ from app.services.chat_history_service import chat_history_service
 import logging
 from typing import Dict, Optional
 from datetime import datetime, timedelta
+from app.services.llm_endpoint import generate_prediction
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -123,11 +124,16 @@ def process_prediction_query():
             user_id  # Pass the user_id for chat history
         )
 
-        # Prepare response with metadata
+        # Step 4: Call the LLM API to get a response
+        logger.info(f"Calling LLM API for prediction")
+        llm_response = generate_prediction(prompt)
+        
+        # Prepare response with metadata and LLM response
         response_data = {
             'prompt': prompt,
+            'prediction': llm_response,
             'metadata': {
-                'steps_completed': ['data_fetch', 'sentiment_analysis', 'prompt_generation'],
+                'steps_completed': ['data_fetch', 'sentiment_analysis', 'prompt_generation', 'llm_prediction'],
                 'timestamp': datetime.now().isoformat(),
                 'raw_data': {
                     'historical': historical_data.get('data', {}),
@@ -139,14 +145,11 @@ def process_prediction_query():
 
         # Store the query and response in chat history
         try:
-            # Store mock response for now (since we're just generating a prompt)
-            chat_response = "This is a placeholder response that would normally come from the LLM."
-            
-            # Store in chat history
+            # Store the actual LLM response in chat history
             chat_history_service.store_chat(
                 user_id, 
                 user_query, 
-                chat_response,
+                llm_response,
                 metadata={
                     'symbol': symbol,
                     'timestamp': datetime.now().isoformat()
@@ -156,11 +159,11 @@ def process_prediction_query():
         except Exception as e:
             logger.error(f"Error storing chat history: {str(e)}")
 
-        # Return prompt and metadata
+        # Return LLM response and metadata
         return jsonify({
             'status': 'success',
             'data': response_data,
-            'message': 'Prompt generated successfully'
+            'message': 'Prediction generated successfully'
         })
     except Exception as e:
         logger.error(f"Error in prediction query: {str(e)}")

@@ -25,4 +25,8 @@ class Config:
     AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
     DYNAMODB_CHAT_TABLE = os.getenv('DYNAMODB_CHAT_TABLE', 'stock_app_chat_history')
     
+    # LLM API Configuration
+    API_URL = os.getenv('API_URL')
+    HF_TOKEN = os.getenv('HF_TOKEN')
+    
     # Other configuration... 

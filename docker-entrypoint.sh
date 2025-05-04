@@ -1,12 +1,8 @@
 #!/bin/bash
 set -e
 
-# Wait for MySQL to be ready
-echo "Waiting for MySQL..."
-while ! nc -z db 3306; do
-  sleep 1
-done
-echo "MySQL is ready!"
+# No longer waiting for MySQL as we're using AWS RDS directly
+echo "Using AWS RDS for database connection..."
 
 # Run the application
 if [ "$FLASK_ENV" = "development" ]; then
