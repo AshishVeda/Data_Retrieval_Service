@@ -14,8 +14,21 @@ logger = logging.getLogger(__name__)
 
 def create_app():
     app = Flask(__name__)
+    # Define allowed origins for security
+    allowed_origins = [
+        'http://localhost:3000',  # React development server
+        'http://localhost:5173',  # Vite development server
+        # Add your production frontend URL when deploying
+    ]
     # Update CORS to allow all origins, methods, and headers
-    CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "allow_headers": "*"}})
+    CORS(app, 
+         resources={r"/*": {
+             "origins": allowed_origins,
+             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             "allow_headers": ["Content-Type", "Authorization"],
+             "expose_headers": ["Content-Range", "X-Content-Range"],
+             "supports_credentials": True  # Required for sending/receiving cookies
+         }})
 
     # Configure Flask
     app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here')
