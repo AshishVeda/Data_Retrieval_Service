@@ -50,6 +50,7 @@ def create_app():
     from app.routes.user_routes import user_bp
     from app.routes.prediction_routes import prediction_bp
     from app.routes.finnhub_routes import finnhub_bp
+    from app.routes.multistep_prediction_routes import multistep_prediction_bp
 
     app.register_blueprint(stock_bp, url_prefix='/api/stocks')
     app.register_blueprint(news_bp, url_prefix='/api/news')
@@ -57,6 +58,7 @@ def create_app():
     app.register_blueprint(user_bp, url_prefix='/api/users')
     app.register_blueprint(prediction_bp, url_prefix='/api/prediction')
     app.register_blueprint(finnhub_bp, url_prefix='/api/finnhub')
+    app.register_blueprint(multistep_prediction_bp, url_prefix='/api/prediction/multistep')
     
     logger.info("Application initialized")
 
