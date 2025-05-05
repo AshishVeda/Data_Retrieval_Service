@@ -20,8 +20,8 @@ if not API_URL:
         if os.path.exists(config_path):
             with open(config_path) as config_file:
                 config = json.load(config_file)
-            API_URL = config.get("API_URL")
-            logger.info(f"Loaded API_URL from config.json: {API_URL}")
+                API_URL = config.get("API_URL")
+                logger.info(f"Loaded API_URL from config.json: {API_URL}")
     except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
         logger.error(f"Error loading API URL from config: {str(e)}")
 
@@ -43,7 +43,7 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
-def generate_prediction(prompt, max_new_tokens=512):
+def generate_prediction(prompt, max_new_tokens=1024):
     """
     Sends the generated prompt to the LLM API and returns the raw response.
     
@@ -65,16 +65,21 @@ def generate_prediction(prompt, max_new_tokens=512):
     try:
         # Most basic payload format for Hugging Face endpoints
         payload = {
-            "inputs": prompt
+            "inputs": prompt,
+            "parameters": {
+                "max_new_tokens": max_new_tokens,
+                "return_full_text": False
+            }
         }
         
         logger.info(f"Sending prompt to LLM API: {prompt[:100]}...")
         logger.info(f"Using endpoint: {API_URL}")
+        logger.info(f"Requesting {max_new_tokens} max new tokens")
         
         # Log the exact payload for debugging
         logger.info(f"Payload: {json.dumps(payload)}")
         
-        response = requests.post(API_URL, headers=HEADERS, json=payload, timeout=60)
+        response = requests.post(API_URL, headers=HEADERS, json=payload, timeout=120)  # Increased timeout too
         
         # Log the response status
         logger.info(f"Response status code: {response.status_code}")
@@ -82,7 +87,7 @@ def generate_prediction(prompt, max_new_tokens=512):
         # If there's an error, try to log the response content
         if response.status_code != 200:
             logger.error(f"Error response content: {response.text}")
-            
+        
         response.raise_for_status()  # raises HTTPError if response is bad
         
         # Extract the generated text from the response

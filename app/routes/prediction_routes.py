@@ -3,7 +3,7 @@ from app.services.stock_service import StockService
 from app.services.news_service import NewsService
 from app.services.social_service import SocialService
 from app.services.llm_service import LLMService
-from app.services.finnhub_service import FinnhubService
+from app.routes.finnhub_routes import FinnhubService
 from app.services.chat_history_service import chat_history_service
 import logging
 from typing import Dict, Optional

@@ -4,6 +4,7 @@ from flask_caching import Cache
 import os
 from datetime import timedelta
 import logging
+from app.scheduler import init_scheduler
 
 # ✅ Initialize Cache
 cache = Cache()
@@ -50,7 +51,7 @@ def create_app():
     from app.routes.user_routes import user_bp
     from app.routes.prediction_routes import prediction_bp
     from app.routes.finnhub_routes import finnhub_bp
-    from app.routes.multistep_prediction_routes import multistep_prediction_bp
+    from app.routes.multistep_prediction_routes import multistep_prediction_bp, followup_bp
 
     app.register_blueprint(stock_bp, url_prefix='/api/stocks')
     app.register_blueprint(news_bp, url_prefix='/api/news')
@@ -59,6 +60,10 @@ def create_app():
     app.register_blueprint(prediction_bp, url_prefix='/api/prediction')
     app.register_blueprint(finnhub_bp, url_prefix='/api/finnhub')
     app.register_blueprint(multistep_prediction_bp, url_prefix='/api/prediction/multistep')
+    app.register_blueprint(followup_bp, url_prefix='/api/prediction/multistep')
+    
+    # Initialize the scheduler for background tasks
+    init_scheduler(app)
     
     logger.info("Application initialized")
 

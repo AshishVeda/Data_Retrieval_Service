@@ -7,6 +7,8 @@ import xmltodict
 from app import cache  # ✅ Import cache from app/__init__.py
 from app.services.news_service import NewsService
 import logging
+from app.routes.user_routes import jwt_required
+from app.scheduler import daily_news_update
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -26,15 +28,16 @@ def fetch_alpha_vantage_news():
     symbol = request.args.get('symbol', '').upper().strip()
     if not symbol:
         return jsonify({"error": "Stock symbol is required"}), 400
-    print(f"Using API Key: {ALPHA_VANTAGE_API_KEY}")
-    print(f"Using API Key: {symbol}")
+    
+    logger.info(f"Fetching news for {symbol} from Alpha Vantage")
     url = f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={symbol}&apikey={ALPHA_VANTAGE_API_KEY}"
 
     try:
         response = requests.get(url)
         news_data = response.json()
-        print(news_data)
+        
         if "feed" not in news_data:
+            logger.warning(f"No news found for {symbol} in Alpha Vantage response")
             return jsonify({"error": "No news found"}), 404
 
         articles = [
@@ -48,9 +51,11 @@ def fetch_alpha_vantage_news():
             for item in news_data["feed"]
         ]
 
+        logger.info(f"Retrieved {len(articles)} articles for {symbol} from Alpha Vantage")
         return jsonify(articles[:10])  # Return top 10 articles
 
     except Exception as e:
+        logger.error(f"Error fetching Alpha Vantage news: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @cache.memoize(timeout=600)  # ✅ Cache API calls for 10 minutes
@@ -163,4 +168,23 @@ def cleanup_old_news():
         return jsonify({
             'status': 'error',
             'message': str(e)
+        }), 500
+
+@news_bp.route('/update-all', methods=['POST'])
+@jwt_required
+def trigger_news_update():
+    """Manually trigger the daily news update job"""
+    try:
+        # Call the scheduler job function directly
+        daily_news_update()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'News update job triggered successfully'
+        })
+    except Exception as e:
+        logger.error(f"Error triggering news update job: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to trigger news update job: {str(e)}'
         }), 500

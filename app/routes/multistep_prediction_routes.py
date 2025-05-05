@@ -494,34 +494,56 @@ def parse_llm_response(response):
         lines = response.split('\n')
         current_section = None
         
+        # Check for the [Prediction & Analysis] format
+        pred_analysis_format = False
         for line in lines:
-            line = line.strip()
-            
-            # Check if this is a section header
-            if line.startswith('SUMMARY:'):
-                current_section = 'summary'
-                sections[current_section] = line[len('SUMMARY:'):].strip()
-            elif line.startswith('PRICE ANALYSIS:'):
-                current_section = 'price_analysis'
-                sections[current_section] = line[len('PRICE ANALYSIS:'):].strip()
-            elif line.startswith('NEWS IMPACT:'):
-                current_section = 'news_impact'
-                sections[current_section] = line[len('NEWS IMPACT:'):].strip()
-            elif line.startswith('SENTIMENT ANALYSIS:'):
-                current_section = 'sentiment_analysis'
-                sections[current_section] = line[len('SENTIMENT ANALYSIS:'):].strip()
-            elif line.startswith('PREDICTION:'):
-                current_section = 'prediction'
-                sections[current_section] = line[len('PREDICTION:'):].strip()
-            elif line.startswith('CONFIDENCE LEVEL:'):
-                current_section = 'confidence'
-                sections[current_section] = line[len('CONFIDENCE LEVEL:'):].strip()
-            elif line.startswith('RISK FACTORS:'):
-                current_section = 'risk_factors'
-                sections[current_section] = line[len('RISK FACTORS:'):].strip()
-            elif current_section and line:
-                # Append this line to the current section
-                sections[current_section] += ' ' + line
+            if '[Prediction & Analysis]' in line:
+                pred_analysis_format = True
+                break
+        
+        if pred_analysis_format:
+            logger.info("Detected [Prediction & Analysis] format")
+            for line in lines:
+                line = line.strip()
+                if line.startswith('Prediction:'):
+                    sections['prediction'] = line[len('Prediction:'):].strip()
+                elif line.startswith('Analysis:'):
+                    sections['price_analysis'] = line[len('Analysis:'):].strip()
+        else:
+            # Standard format with section headers
+            for line in lines:
+                line = line.strip()
+                
+                # Check if this is a section header
+                if line.startswith('SUMMARY:'):
+                    current_section = 'summary'
+                    sections[current_section] = line[len('SUMMARY:'):].strip()
+                elif line.startswith('PRICE ANALYSIS:'):
+                    current_section = 'price_analysis'
+                    sections[current_section] = line[len('PRICE ANALYSIS:'):].strip()
+                elif line.startswith('NEWS IMPACT:'):
+                    current_section = 'news_impact'
+                    sections[current_section] = line[len('NEWS IMPACT:'):].strip()
+                elif line.startswith('SENTIMENT ANALYSIS:'):
+                    current_section = 'sentiment_analysis'
+                    sections[current_section] = line[len('SENTIMENT ANALYSIS:'):].strip()
+                elif line.startswith('PREDICTION:'):
+                    current_section = 'prediction'
+                    sections[current_section] = line[len('PREDICTION:'):].strip()
+                elif line.startswith('CONFIDENCE LEVEL:'):
+                    current_section = 'confidence'
+                    sections[current_section] = line[len('CONFIDENCE LEVEL:'):].strip()
+                elif line.startswith('RISK FACTORS:'):
+                    current_section = 'risk_factors'
+                    sections[current_section] = line[len('RISK FACTORS:'):].strip()
+                elif current_section and line:
+                    # Append this line to the current section
+                    sections[current_section] += ' ' + line
+        
+        # If no sections were populated, use the full response as summary
+        if not any(sections.values()):
+            logger.info("No structured sections found, using full response as summary")
+            sections['summary'] = response
         
         return sections
         
@@ -529,4 +551,110 @@ def parse_llm_response(response):
         logger.error(f"Error parsing LLM response: {str(e)}")
         return {
             'full_response': response
-        } 
+        }
+
+# Create a separate blueprint for followup endpoint
+followup_bp = Blueprint('followup', __name__)
+
+@followup_bp.route('/followup', methods=['POST'])
+@jwt_required
+def followup_prediction():
+    """Simple follow-up endpoint that takes a user query and sends it directly to the LLM"""
+    try:
+        # Parse request
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'status': 'error',
+                'message': 'Request body is required'
+            }), 400
+            
+        # Handle both 'symbol' and 'Symbol' in the request (case insensitive)
+        symbol = data.get('symbol') or data.get('Symbol')
+        user_query = data.get('user_query')
+        
+        if not symbol or not user_query:
+            return jsonify({
+                'status': 'error',
+                'message': 'Symbol and user_query are required'
+            }), 400
+            
+        # Get user ID from request.user (set by the jwt_required decorator)
+        user_id = request.user['user_id']
+        
+        logger.info(f"Processing follow-up prediction for {symbol}, query: '{user_query}'")
+        
+        # Fetch user's recent chat history for context
+        chat_history_text = ""
+        try:
+            history_result = chat_history_service.get_chat_history(user_id, limit=3)
+            
+            if history_result.get('status') == 'success' and history_result.get('data'):
+                chat_history = history_result.get('data', [])
+                
+                # Format chat history for the prompt
+                for i, entry in enumerate(chat_history):
+                    if entry.get('symbol') == symbol:  # Only include history for this symbol
+                        chat_history_text += f"Previous Question: {entry.get('query', '')}\n"
+                        chat_history_text += f"Previous Answer: {entry.get('response', '')}\n\n"
+        except Exception as e:
+            logger.warning(f"Error retrieving chat history: {str(e)}")
+        
+        # Generate a prompt with chat history included
+        history_section = f"PREVIOUS CONVERSATION HISTORY:\n{chat_history_text}\n\n" if chat_history_text else ""
+        
+        prompt = f"""
+        You are an AI financial analyst and stock market expert specializing in providing insights about publicly traded companies.
+        
+        Answer the following question about {symbol} stock with accurate, up-to-date information.
+        
+        Format your response in a clear, conversational manner. Include:
+        - Direct answers to the query
+        - Relevant market context if appropriate
+        - Any potential caveats or uncertainties
+        
+        {history_section}Current Question about {symbol}: {user_query}
+        
+        Answer:
+        """
+        
+        # Send the prompt directly to the LLM
+        response = generate_prediction(prompt)
+        
+        # Store in chat history if available
+        try:
+            chat_history_service.store_chat(
+                user_id,
+                user_query,
+                response,
+                metadata={
+                    'symbol': symbol,
+                    'timestamp': datetime.now().isoformat(),
+                    'analysis_type': 'followup'
+                }
+            )
+        except Exception as chat_error:
+            logger.warning(f"Could not store chat history: {str(chat_error)}")
+        
+        # Try to parse the LLM response into sections
+        try:
+            response_sections = parse_llm_response(response)
+        except Exception as parse_error:
+            logger.warning(f"Could not parse LLM response: {str(parse_error)}")
+            response_sections = {'full_response': response}
+            
+        # Return the response without including the prompt
+        return jsonify({
+            'status': 'success',
+            'symbol': symbol,
+            'user_query': user_query,
+            'llm_response': response,
+            'sections': response_sections
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in followup prediction: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500 
