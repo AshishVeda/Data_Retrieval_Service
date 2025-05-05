@@ -67,20 +67,6 @@ environment:
 - `POST /api/users/login` - Log in a user
 - `POST /api/users/logout` - Log out a user
 
-### Stock Data
-
-- `GET /api/stocks/historical/{symbol}` - Get historical stock data
-- `GET /api/stocks/company/{symbol}` - Get company profile
-
-### News and Sentiment
-
-- `GET /api/news/fetch-all` - Fetch news for all symbols
-- `GET /api/news/{symbol}` - Fetch news for a specific symbol
-- `GET /api/social/{symbol}` - Get social media sentiment for a symbol
-
-### Predictions
-
-- `POST /api/prediction/query` - Get stock predictions based on user query
 
 ## Data Retrieval Service
 
