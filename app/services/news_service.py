@@ -207,6 +207,7 @@ class NewsService:
             else:
                 logger.warning(f"SEMANTIC-SEARCH: No results found for semantic search")
             
+            
             return {
                 'status': 'success',
                 'data': similar_news,
