@@ -7,6 +7,7 @@ from app.services.social_service import SocialService
 from app.services.llm_service import LLMService
 from app.services.chat_history_service import chat_history_service
 from app.services.llm_endpoint import generate_prediction
+from app.routes.finnhub_routes import FinnhubService
 from app import cache
 from app.routes.user_routes import jwt_required  # Import the jwt_required decorator
 
@@ -48,12 +49,26 @@ def fetch_historical():
         # Get data for past 3 weeks (21 days)
         three_weeks_ago = (datetime.now() - timedelta(days=21)).strftime('%Y-%m-%d')
         
+        logger.info(f"[HISTORICAL] Fetching 3 weeks of historical data for {symbol} from {three_weeks_ago} to today")
+        
         # You might need to adjust this if your service doesn't support start_date
         # This is a suggestion for implementation
         historical_data = stock_service.get_historical_prices(symbol, period="3w")
         
         if historical_data['status'] == 'error':
+            logger.error(f"[HISTORICAL] Error fetching data: {historical_data['message']}")
             return jsonify(historical_data), 500
+        
+        # Log how much data we received
+        if 'data' in historical_data and 'dates' in historical_data['data']:
+            date_count = len(historical_data['data']['dates'])
+            logger.info(f"[HISTORICAL] Retrieved {date_count} days of data for {symbol}")
+            
+            # Log the date range of the data
+            if date_count > 0:
+                start_date = historical_data['data']['dates'][0]
+                end_date = historical_data['data']['dates'][-1]
+                logger.info(f"[HISTORICAL] Date range: {start_date} to {end_date}")
         
         # Cache the data and query for subsequent steps
         cache_key = get_cache_key(user_id, symbol)
@@ -105,14 +120,17 @@ def fetch_historical():
 @multistep_prediction_bp.route('/news', methods=['POST'])
 @jwt_required
 def fetch_news():
-    """Step 2: Fetch 10 relevant news articles from the last 3 weeks"""
+    """Step 2: Fetch 10 relevant news articles from vector database with fallback to Finnhub"""
     try:
         # Get user ID from request.user (set by the jwt_required decorator)
         user_id = request.user['user_id']
         
+        logger.info(f"[NEWS-FETCH] Starting news fetch process for user {user_id}")
+        
         # Parse request
         data = request.get_json()
         if not data or 'symbol' not in data or 'user_query' not in data:
+            logger.error(f"[NEWS-FETCH] Missing required parameters in request")
             return jsonify({
                 'status': 'error',
                 'message': 'Symbol and user_query are required'
@@ -121,47 +139,146 @@ def fetch_news():
         symbol = data['symbol']
         user_query = data['user_query']
         
+        logger.info(f"[NEWS-FETCH] Processing request for symbol: {symbol} with query: '{user_query}'")
+        
         # Get cached data from step 1
         cache_key = get_cache_key(user_id, symbol)
         step_data = cache.get(cache_key)
         
         if not step_data:
+            logger.error(f"[NEWS-FETCH] No cached data found for key: {cache_key}")
             return jsonify({
                 'status': 'error',
                 'message': 'Historical data not found or expired. Please restart the analysis.'
             }), 400
         
-        # Fetch news articles - the get_company_news method doesn't support limit or from_date parameters
+        # Initialize services
         news_service = NewsService()
-        news_data = news_service.get_company_news(symbol)
+        finnhub_service = FinnhubService()
         
-        # Update cache with news data
-        step_data['news'] = news_data.get('data', [])
+        # FLOW STEP 1: Try semantic search first to find relevant articles for the user query
+        logger.info(f"[NEWS-FETCH] STEP 1: Attempting semantic search for '{user_query}' related to {symbol}")
+        similar_news_result = news_service.search_similar_news(user_query, symbol, limit=5)
+        
+        has_relevant_articles = False
+        articles_from_search = []
+        
+        if similar_news_result['status'] == 'success' and len(similar_news_result.get('data', [])) >= 1:
+            articles_from_search = similar_news_result['data']
+            has_relevant_articles = True
+            logger.info(f"[NEWS-FETCH] FLOW STEP 1 SUCCESS: Found {len(articles_from_search)} semantically relevant articles for the query")
+        else:
+            logger.info(f"[NEWS-FETCH] FLOW STEP 1 FAILED: No semantically relevant articles found, moving to step 2")
+        
+        # FLOW STEP 2: If no semantic search results, update VectorDB from Finnhub API and retry
+        if not has_relevant_articles:
+            logger.info(f"[NEWS-FETCH] FLOW STEP 2: Updating VectorDB from Finnhub API")
+            
+            # Call Finnhub to fetch and store company news
+            finnhub_result = finnhub_service.fetch_company_news(symbol, weeks=2)
+            
+            if finnhub_result['status'] == 'success' and finnhub_result.get('data'):
+                finnhub_fetched_data = finnhub_result.get('data', [])
+                logger.info(f"[NEWS-FETCH] FLOW STEP 2: Finnhub API returned {len(finnhub_fetched_data)} articles")
+                
+                # Now retry semantic search after updating VectorDB
+                logger.info(f"[NEWS-FETCH] FLOW STEP 2: Retrying semantic search after updating VectorDB")
+                similar_news_result = news_service.search_similar_news(user_query, symbol, limit=5)
+                
+                if similar_news_result['status'] == 'success' and len(similar_news_result.get('data', [])) >= 1:
+                    articles_from_search = similar_news_result['data']
+                    has_relevant_articles = True
+                    logger.info(f"[NEWS-FETCH] FLOW STEP 2 SUCCESS: Found {len(articles_from_search)} semantically relevant articles after VectorDB update")
+                else:
+                    logger.info(f"[NEWS-FETCH] FLOW STEP 2 FAILED: Still no semantically relevant articles, moving to step 3")
+            else:
+                logger.warning(f"[NEWS-FETCH] FLOW STEP 2 FAILED: Finnhub API did not return articles")
+        
+        # FLOW STEP 3: If semantic search still fails, use direct Finnhub API results
+        finnhub_direct_data = []
+        if not has_relevant_articles:
+            logger.info(f"[NEWS-FETCH] FLOW STEP 3: Using direct Finnhub API results as fallback")
+            
+            # Use the data we already fetched in step 2 if available
+            if 'data' in finnhub_result and finnhub_result['data']:
+                finnhub_direct_data = finnhub_result['data']
+                logger.info(f"[NEWS-FETCH] FLOW STEP 3: Using {len(finnhub_direct_data)} articles from previous Finnhub API call")
+            else:
+                # Try to fetch again if needed
+                finnhub_result = finnhub_service.fetch_company_news(symbol, weeks=1)
+                
+                if finnhub_result['status'] == 'success' and finnhub_result.get('data'):
+                    finnhub_direct_data = finnhub_result.get('data', [])
+                    logger.info(f"[NEWS-FETCH] FLOW STEP 3: Fresh Finnhub API call returned {len(finnhub_direct_data)} articles")
+                else:
+                    logger.error(f"[NEWS-FETCH] FLOW STEP 3 FAILED: Could not fetch articles from Finnhub API")
+        
+        # Determine which data source to use for the response
+        articles_to_use = []
+        data_source = ""
+        
+        if has_relevant_articles:
+            # Use semantically relevant articles (STEP 1 or 2)
+            articles_to_use = articles_from_search
+            data_source = "semantic_search"
+        elif finnhub_direct_data:
+            # Use direct Finnhub API results (STEP 3)
+            articles_to_use = finnhub_direct_data
+            data_source = "finnhub_api"
+        else:
+            # This is a fallback if all approaches failed
+            logger.error(f"[NEWS-FETCH] All approaches failed to get articles")
+            data_source = "none"
+        
+        # Update cache with the news data we're going to use
+        step_data['news'] = articles_to_use
         cache.set(cache_key, step_data, timeout=CACHE_DURATION)
         
-        # Format the articles for frontend display - take only the 10 most recent articles
+        # Format the articles for frontend display
         formatted_articles = []
         
-        # Sort articles by date (newest first)
-        articles = sorted(
-            news_data.get('data', []),
-            key=lambda x: x.get('published', ''),
-            reverse=True
-        )
+        # If using semantic search results, preserve the relevance order
+        # Otherwise, sort by date (newest first)
+        sorted_articles = articles_to_use
+        if data_source != "semantic_search" and articles_to_use:
+            sorted_articles = sorted(
+                articles_to_use,
+                key=lambda x: x.get('published', ''),
+                reverse=True
+            )
         
-        # Take only the 10 most recent ones
-        for article in articles[:10]:
+        # Limit to 10 articles
+        for article in sorted_articles[:10]:
+            # Ensure we have a valid link
+            link = "#"
+            if article.get('link') and article.get('link') != "#":
+                link = article.get('link')
+            elif article.get('url'):
+                link = article.get('url')
+                
             formatted_articles.append({
                 'title': article.get('title', 'No title'),
                 'published': article.get('published', ''),
                 'source': article.get('source', 'Unknown'),
-                'link': article.get('link', '#'),
+                'link': link,
                 'summary': article.get('summary', 'No summary available')
             })
         
+        logger.info(f"[NEWS-FETCH] Successfully formatted {len(formatted_articles)} articles for response")
+        logger.info(f"[NEWS-FETCH] DATA SOURCE: {data_source.upper()}")
+        
+        # Create appropriate message based on data source
+        if data_source == "semantic_search":
+            message = f'Articles semantically relevant to your query about {symbol}'
+        elif data_source == "finnhub_api":
+            message = f'Recent news articles for {symbol} from Finnhub API'
+        else:
+            message = f'Failed to fetch news articles for {symbol}'
+        
         return jsonify({
             'status': 'success',
-            'message': f'10 news articles fetched for {symbol} from the last 3 weeks',
+            'message': message,
+            'data_source': data_source,
             'step': 2,
             'data': {
                 'step_name': 'news',
@@ -172,7 +289,7 @@ def fetch_news():
         })
         
     except Exception as e:
-        logger.error(f"Error in news step: {str(e)}")
+        logger.error(f"[NEWS-FETCH] Error in news step: {str(e)}")
         return jsonify({
             'status': 'error',
             'message': str(e)

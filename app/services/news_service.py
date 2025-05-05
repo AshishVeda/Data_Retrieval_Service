@@ -6,6 +6,7 @@ from app.services.vector_service import VectorService
 from textblob import TextBlob
 import os
 from dotenv import load_dotenv
+import hashlib
 
 # Load environment variables
 load_dotenv()
@@ -35,7 +36,7 @@ class NewsService:
         logger.info("NewsService initialized with VectorService")
 
     def get_company_news(self, symbol: str) -> Dict:
-        """Fetch news articles for a company"""
+        """Fetch news articles for a company and store them in vector DB"""
         try:
             # Check cache first
             if symbol in self.news_cache:
@@ -48,15 +49,23 @@ class NewsService:
                     }
             
             # Fetch fresh news
+            logger.info(f"Fetching fresh news for {symbol} from Google News RSS")
             feed = feedparser.parse(f'https://news.google.com/rss/search?q={symbol}+stock&hl=en-US&gl=US&ceid=US:en')
             
             if feed.status != 200:
+                logger.error(f"Failed to fetch news feed for {symbol}, status: {feed.status}")
                 return {
                     'status': 'error',
                     'message': f'Failed to fetch news for {symbol}'
                 }
             
+            logger.info(f"Found {len(feed.entries)} raw entries for {symbol}")
+            
             articles = []
+            articles_stored = 0
+            storage_failures = 0
+            news_items_to_store = []
+            
             for entry in feed.entries:
                 try:
                     # Parse date with multiple format attempts
@@ -76,35 +85,60 @@ class NewsService:
                     
                     if not parsed_date:
                         parsed_date = datetime.now()
+                        logger.warning(f"Couldn't parse date for article: {entry.title[:30]}..., using current time")
                     
                     # Only include articles from last 3 days
                     if datetime.now() - parsed_date > timedelta(days=3):
+                        logger.debug(f"Skipping old article from {parsed_date.isoformat()}")
                         continue
                     
-                    articles.append({
+                    # Create article object
+                    article = {
                         'title': entry.title,
                         'link': entry.link,
                         'published': parsed_date.isoformat(),
-                        'source': entry.source.title if hasattr(entry, 'source') else 'Unknown'
-                    })
+                        'source': entry.source.title if hasattr(entry, 'source') else 'Unknown',
+                        'summary': entry.get('summary', ''),
+                        'symbol': symbol,
+                        'timestamp': datetime.now().isoformat()
+                    }
                     
-                    # Store in vector database
-                    self.vector_service.store_news(symbol, entry.title, entry.link, parsed_date)
+                    articles.append(article)
+                    news_items_to_store.append(article)
                     
-                except Exception as e:
+                except Exception as article_error:
+                    logger.error(f"Error processing article: {str(article_error)}")
                     continue
+            
+            # Store all articles in vector database at once
+            if news_items_to_store:
+                try:
+                    logger.info(f"Storing {len(news_items_to_store)} articles in VectorDB")
+                    success = self.vector_service.store_news(news_items_to_store)
+                    
+                    if success:
+                        articles_stored = len(news_items_to_store)
+                        logger.info(f"Successfully stored {articles_stored} articles in VectorDB")
+                    else:
+                        storage_failures = len(news_items_to_store)
+                        logger.error(f"Failed to store articles in VectorDB - returned False")
+                except Exception as storage_error:
+                    storage_failures = len(news_items_to_store)
+                    logger.error(f"Exception while storing articles in VectorDB: {str(storage_error)}")
             
             # Update cache
             self.news_cache[symbol] = (datetime.now(), articles)
             
+            logger.info(f"News fetch summary for {symbol}: {len(articles)} articles found, {articles_stored} stored in VectorDB, {storage_failures} storage failures")
+            
             return {
                 'status': 'success',
                 'data': articles,
-                'message': f'News fetched for {symbol}'
+                'message': f'News fetched for {symbol}: {articles_stored} of {len(articles)} articles stored in VectorDB'
             }
             
         except Exception as e:
-            logger.error(f"Error fetching news for {symbol}: {str(e)}")
+            logger.error(f"Error in get_company_news for {symbol}: {str(e)}")
             return {
                 'status': 'error',
                 'message': str(e)
@@ -160,7 +194,18 @@ class NewsService:
     def search_similar_news(self, query: str, symbol: Optional[str] = None, limit: int = 5) -> Dict:
         """Search for similar news items based on a query"""
         try:
+            logger.info(f"SEMANTIC-SEARCH: Performing semantic search for query: '{query}' symbol: '{symbol}' limit: {limit}")
             similar_news = self.vector_service.search_similar_news(query, symbol, limit)
+            
+            logger.info(f"SEMANTIC-SEARCH: Found {len(similar_news)} semantically similar articles")
+            if len(similar_news) > 0:
+                logger.info(f"SEMANTIC-SEARCH: First result title: '{similar_news[0].get('title', 'No title')}', published: {similar_news[0].get('published', 'Unknown date')}")
+                
+                # Log all article titles and dates for debugging
+                for i, article in enumerate(similar_news):
+                    logger.info(f"SEMANTIC-SEARCH: Result #{i+1}: '{article.get('title', 'No title')}', published: {article.get('published', 'Unknown date')}")
+            else:
+                logger.warning(f"SEMANTIC-SEARCH: No results found for semantic search")
             
             return {
                 'status': 'success',
@@ -391,4 +436,45 @@ class NewsService:
             'status': 'success',
             'data': all_news,
             'message': f'News fetched for {len(symbols)} companies'
-        } 
+        }
+
+    def _initialize_collections(self):
+        """Initialize ChromaDB collections if they don't exist"""
+        try:
+            logger.info("Initializing ChromaDB collections")
+            
+            # Initialize client if needed
+            if not hasattr(self, 'client') or not self.client:
+                try:
+                    import chromadb
+                    logger.info(f"Creating ChromaDB client, version: {chromadb.__version__}")
+                    self.client = chromadb.PersistentClient(path="./chromadb")
+                except ImportError:
+                    logger.error("ChromaDB is not installed. Please install with: pip install chromadb")
+                    return False
+                except Exception as client_error:
+                    logger.error(f"Error creating ChromaDB client: {str(client_error)}")
+                    return False
+            
+            # Initialize news collection
+            try:
+                # Try to get existing collection
+                self.news_collection = self.client.get_collection("news_articles")
+                logger.info("Retrieved existing news_collection")
+            except Exception as collection_error:
+                logger.info(f"Creating new news_collection: {str(collection_error)}")
+                try:
+                    # Create new collection
+                    self.news_collection = self.client.create_collection(
+                        name="news_articles",
+                        metadata={"hnsw:space": "cosine"}
+                    )
+                    logger.info("Successfully created news_collection")
+                except Exception as create_error:
+                    logger.error(f"Failed to create news_collection: {str(create_error)}")
+                    return False
+                
+            return True
+        except Exception as e:
+            logger.error(f"Error in _initialize_collections: {str(e)}")
+            return False 

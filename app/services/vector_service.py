@@ -3,6 +3,7 @@ from chromadb.config import Settings
 import logging
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -10,18 +11,46 @@ logger = logging.getLogger(__name__)
 class VectorService:
     def __init__(self):
         # Initialize ChromaDB client with persistent storage
-        self.client = chromadb.Client(Settings(
-            persist_directory="data/chroma",
-            anonymized_telemetry=False
-        ))
-        
-        # Create or get the news collection
-        self.news_collection = self.client.get_or_create_collection(
-            name="stock_news",
-            metadata={"hnsw:space": "cosine"}
-        )
-        
-        logger.info("VectorService initialized with ChromaDB")
+        try:
+            # Ensure data directory exists
+            data_dir = "data/chroma"
+            os.makedirs(data_dir, exist_ok=True)
+            
+            self.client = chromadb.PersistentClient(
+                path=data_dir,
+                settings=Settings(
+                    anonymized_telemetry=False,
+                    allow_reset=True,
+                    is_persistent=True
+                )
+            )
+            
+            # Create or get the news collection
+            self.news_collection = self.client.get_or_create_collection(
+                name="stock_news",
+                metadata={"hnsw:space": "cosine"}
+            )
+            
+            logger.info("VectorService initialized with ChromaDB persistent storage")
+        except Exception as e:
+            logger.error(f"Error initializing ChromaDB: {str(e)}")
+            # Fallback to in-memory client if persistent fails
+            try:
+                self.client = chromadb.Client(Settings(
+                    anonymized_telemetry=False
+                ))
+                
+                # Create or get the news collection
+                self.news_collection = self.client.get_or_create_collection(
+                    name="stock_news",
+                    metadata={"hnsw:space": "cosine"}
+                )
+                logger.warning("VectorService using in-memory fallback (data will not persist)")
+            except Exception as fallback_error:
+                logger.critical(f"Failed to initialize even fallback ChromaDB: {str(fallback_error)}")
+                # Create dummy object to prevent errors
+                self.client = None
+                self.news_collection = None
 
     def store_news(self, news_items: List[Dict]) -> bool:
         """Store news items in ChromaDB and clean up old news"""
@@ -114,42 +143,99 @@ class VectorService:
     def search_similar_news(self, query: str, symbol: Optional[str] = None, limit: int = 5) -> List[Dict]:
         """Search for similar news items based on a query"""
         try:
-            # Get current time and 3 days ago
-            now = datetime.now()
-            three_days_ago = (now - timedelta(days=3)).isoformat()
-
-            # Build where clause
-            where_clause = {"timestamp": {"$gte": three_days_ago}}
-            if symbol:
-                where_clause = {
-                    "$and": [
-                        {"symbol": symbol},
-                        {"timestamp": {"$gte": three_days_ago}}
-                    ]
-                }
+            logger.info(f"VECTOR-SEARCH: Running semantic search with query: '{query}'")
             
+            # Build where clause based only on symbol, not timestamp
+            where_clause = {}
+            if symbol:
+                where_clause = {"symbol": symbol}
+            
+            logger.info(f"VECTOR-SEARCH: Using where clause: {where_clause}")
+            
+            # First check if we have any data matching the filters
+            check_results = self.news_collection.get(
+                where=where_clause,
+                limit=1
+            )
+            
+            if not check_results or len(check_results['ids']) == 0:
+                logger.warning(f"VECTOR-SEARCH: No articles found matching the filter criteria")
+                return []
+                
+            # Proceed with semantic search
             results = self.news_collection.query(
                 query_texts=[query],
                 where=where_clause,
                 n_results=limit
             )
+            
+            logger.info(f"VECTOR-SEARCH: Query returned {len(results['ids'][0]) if results and 'ids' in results and results['ids'] else 0} results")
 
             # Format results
             similar_news = []
-            for i in range(len(results['ids'][0])):
-                similar_news.append({
-                    'id': results['ids'][0][i],
-                    'title': results['metadatas'][0][i]['title'],
-                    'url': results['metadatas'][0][i]['url'],
-                    'published': results['metadatas'][0][i]['published'],
-                    'symbol': results['metadatas'][0][i]['symbol'],
-                    'similarity': results['distances'][0][i]
-                })
+            if results and 'ids' in results and results['ids'] and len(results['ids'][0]) > 0:
+                # Get current time for filtering recent articles (use last 30 days instead of 3)
+                now = datetime.now()
+                cutoff_date = now - timedelta(days=30)  # Increased from 3 to 30 days for testing
+                
+                for i in range(len(results['ids'][0])):
+                    try:
+                        # Parse the published date to filter out old articles
+                        published_str = results['metadatas'][0][i]['published']
+                        
+                        # Verify published date format, handle multiple formats
+                        try:
+                            published_date = datetime.fromisoformat(published_str)
+                        except ValueError:
+                            # Try alternative date formats if ISO format fails
+                            try:
+                                # Try Unix timestamp
+                                published_date = datetime.fromtimestamp(float(published_str))
+                            except ValueError:
+                                # As a fallback, don't filter by date
+                                published_date = now
+                        
+                        # Skip articles older than cutoff date, less strict for semantic search
+                        # Temporarily disabled date filtering for debugging
+                        # if published_date < cutoff_date:
+                        #     logger.debug(f"VECTOR-SEARCH: Skipping old article from {published_str}")
+                        #     continue
+                            
+                        # Extract link or URL
+                        link = "#"
+                        if 'url' in results['metadatas'][0][i]:
+                            link = results['metadatas'][0][i]['url']
+                        elif 'link' in results['metadatas'][0][i]:
+                            link = results['metadatas'][0][i]['link']
+                            
+                        article = {
+                            'id': results['ids'][0][i],
+                            'title': results['metadatas'][0][i]['title'],
+                            'url': link,
+                            'published': published_str,
+                            'source': results['metadatas'][0][i].get('source', 'Unknown'),
+                            'symbol': results['metadatas'][0][i]['symbol'],
+                            'similarity': results['distances'][0][i] if 'distances' in results else 0,
+                            'link': link,
+                            'summary': results['metadatas'][0][i].get('summary', 'No summary available')
+                        }
+                        similar_news.append(article)
+                        logger.info(f"VECTOR-SEARCH: Article '{article['title'][:30]}...' added to results (published: {published_str})")
+                    except Exception as e:
+                        logger.warning(f"VECTOR-SEARCH: Error formatting article: {str(e)}")
+                        continue
+                
+                logger.info(f"VECTOR-SEARCH: Formatted {len(similar_news)} articles for response")
+                if similar_news:
+                    logger.info(f"VECTOR-SEARCH: First result title: '{similar_news[0]['title']}' similarity: {similar_news[0]['similarity']}")
+            else:
+                logger.warning(f"VECTOR-SEARCH: No similar articles found for query '{query}'")
 
-            return similar_news
+            # Return the most relevant articles first (lowest distance score = most similar)
+            return sorted(similar_news, key=lambda x: x.get('similarity', 1.0))
 
         except Exception as e:
-            logger.error(f"Error searching similar news: {str(e)}")
+            logger.error(f"VECTOR-SEARCH: Error searching similar news: {str(e)}")
             return []
 
     def cleanup_old_news(self, days: int = 3):

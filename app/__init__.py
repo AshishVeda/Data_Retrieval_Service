@@ -39,7 +39,7 @@ def create_app():
     app.config['SESSION_REFRESH_EACH_REQUEST'] = True  # Refresh session on each request
     
     cache.init_app(app)
-    
+
     # Initialize database (this will create the tables if they don't exist)
     from app.database import db
     

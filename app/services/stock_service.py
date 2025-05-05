@@ -45,6 +45,8 @@ class StockService:
                 start_date = end_date - timedelta(days=5)
             elif period == '1mo' or period == '1m':
                 start_date = end_date - timedelta(days=30)
+            elif period == '3w':
+                start_date = end_date - timedelta(days=21)  # Add 3-week period (21 days)
             elif period == '3mo' or period == '3m':
                 start_date = end_date - timedelta(days=90)
             elif period == '6mo' or period == '6m':
