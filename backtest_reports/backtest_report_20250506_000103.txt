@@ -1,0 +1,11 @@
+===== STOCK PREDICTION BACKTEST REPORT =====
+Generated: 2025-05-06 00:01:03
+
+
+----- AAPL -----
+Status: error
+Message: Failed to make prediction: 'LLMService' object has no attribute 'get_multistep_prediction'
+
+===== SUMMARY STATISTICS =====
+Total symbols tested: 1
+Successful predictions: 0/1 (0.0%)

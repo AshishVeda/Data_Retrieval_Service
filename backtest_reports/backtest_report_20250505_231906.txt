@@ -1,0 +1,22 @@
+===== STOCK PREDICTION BACKTEST REPORT =====
+Generated: 2025-05-05 23:19:06
+
+
+----- AAPL -----
+No evaluation data available
+
+----- MSFT -----
+No evaluation data available
+
+----- GOOGL -----
+No evaluation data available
+
+----- AMZN -----
+No evaluation data available
+
+----- META -----
+No evaluation data available
+
+===== SUMMARY STATISTICS =====
+Total symbols tested: 5
+Successful predictions: 0/5 (0.0%)

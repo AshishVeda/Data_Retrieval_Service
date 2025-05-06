@@ -1,0 +1,54 @@
+===== STOCK PREDICTION BACKTEST REPORT =====
+Generated: 2025-05-06 00:15:14
+
+
+----- AAPL -----
+Prediction date: 2025-05-04
+Test date: 2025-05-05
+Predicted price: $215.75
+Last training price: $202.14
+Actual price on 2025-05-05: $198.89
+Absolute error: $16.86
+Percentage error: 8.48%
+Direction prediction correct: False
+Actual price change: $-3.25
+Actual percentage change: -1.61%
+
+----- MSFT -----
+Prediction date: 2025-05-04
+Test date: 2025-05-05
+Predicted price: $430.60
+Last training price: $385.73
+Actual price on 2025-05-05: $436.17
+Absolute error: $5.57
+Percentage error: 1.28%
+Direction prediction correct: True
+Actual price change: $50.44
+Actual percentage change: 13.08%
+
+----- GOOGL -----
+Prediction date: 2025-05-04
+Test date: 2025-05-05
+Predicted price: $167.00
+Last training price: $156.31
+Actual price on 2025-05-05: $164.21
+Absolute error: $2.79
+Percentage error: 1.70%
+Direction prediction correct: True
+Actual price change: $7.90
+Actual percentage change: 5.05%
+
+----- META -----
+Status: error
+Message: Failed to fetch stock data: Error fetching historical data: We have detected your API key as 8MINI75UXAC4F64F and our standard API rate limit is 25 requests per day. Please subscribe to any of the premium plans at https://www.alphavantage.co/premium/ to instantly remove all daily rate limits.
+
+----- AMZN -----
+Status: error
+Message: Failed to fetch stock data: Error fetching historical data: We have detected your API key as 8MINI75UXAC4F64F and our standard API rate limit is 25 requests per day. Please subscribe to any of the premium plans at https://www.alphavantage.co/premium/ to instantly remove all daily rate limits.
+
+===== SUMMARY STATISTICS =====
+Total symbols tested: 5
+Successful predictions: 3/5 (60.0%)
+Direction accuracy: 2/3 (66.7%)
+Average absolute error: $8.41
+Average percentage error: 3.82%

@@ -1,0 +1,21 @@
+===== STOCK PREDICTION BACKTEST REPORT =====
+Generated: 2025-05-06 00:03:10
+
+
+----- AAPL -----
+Prediction date: 2025-04-29
+Predicted price: $215.25
+Starting price: $198.89
+Ending price: $211.21
+Absolute error: $4.04
+Percentage error: 1.91%
+Direction prediction correct: True
+Actual price change: $12.32
+Actual percentage change: 6.19%
+
+===== SUMMARY STATISTICS =====
+Total symbols tested: 1
+Successful predictions: 1/1 (100.0%)
+Direction accuracy: 1/1 (100.0%)
+Average absolute error: $4.04
+Average percentage error: 1.91%

@@ -1,0 +1,148 @@
+{
+  "AAPL": {
+    "status": "success",
+    "prediction": {
+      "status": "success",
+      "message": "Prediction generated for AAPL",
+      "step": 4,
+      "data": {
+        "step_name": "result",
+        "symbol": "AAPL",
+        "user_query": "What will be the price of AAPL tomorrow based on the data from 2025-05-04?",
+        "prediction": "[Prediction & Analysis]:\nPrediction: The stock price of AAPL is expected to increase by 1.5% to $201.8 in the next week, based on the data from 2025-05-04.\n\nAnalysis:\nThe historical data shows a steady increase in the stock price over the past two weeks, indicating a positive trend. There are no recent news events that might significantly affect the stock, which suggests that the current market sentiment is favorable. The social media sentiment analysis reveals a neutral to slightly positive sentiment, which is consistent with the historical price trends.\n\nThe stock's recent price movements suggest a bullish market psychology, with the stock price increasing by 1.59% over the last 15 days. The lack of any significant negative news suggests that the stock's fundamentals are strong and the market is optimistic about its future performance.\n\nIn light of these factors, it is reasonable to predict that the stock price of AAPL will continue its upward trend in the next week, with a target price of $215.75. However, there are some potential risks that could invalidate this prediction, such as unexpected changes in the global economy or intense competition in the tech industry.\n\n[Confidence Level]:",
+        "sections": {
+          "summary": "",
+          "price_analysis": "",
+          "news_impact": "",
+          "sentiment_analysis": "",
+          "prediction": "The stock price of AAPL is expected to increase by 1.5% to $201.8 in the next week, based on the data from 2025-05-04.",
+          "target_price": "$201.8",
+          "confidence": "",
+          "risk_factors": ""
+        },
+        "target_price": "$201.8",
+        "timestamp": "2025-05-06T00:14:06.352572"
+      }
+    },
+    "timestamp": "2025-05-06T00:14:06.352624",
+    "test_date": "2025-05-04",
+    "evaluation": {
+      "status": "success",
+      "symbol": "AAPL",
+      "test_date": "2025-05-05",
+      "prediction": {
+        "predicted_price": 201.8,
+        "target_price_raw": "$201.8"
+      },
+      "actual": {
+        "last_train_price": 202.14,
+        "actual_price": 198.89,
+        "date": "2025-05-05"
+      },
+      "metrics": {
+        "percentage_error": 1.477047614259146,
+        "direction_correct": false
+      }
+    }
+  },
+  "MSFT": {
+    "status": "success",
+    "prediction": {
+      "status": "success",
+      "message": "Prediction generated for MSFT",
+      "step": 4,
+      "data": {
+        "step_name": "result",
+        "symbol": "MSFT",
+        "user_query": "What will be the price of MSFT tomorrow based on the data from 2025-05-04?",
+        "prediction": "[Prediction & Analysis]:\nPrediction: $430.60\nAnalysis:\nAfter analyzing the historical data, news, and sentiment, the prediction for the next week's stock price of Microsoft (MSFT) is $430.60. This is a slight decrease from the current price of $435.28.\n\nKey insights from the historical data reveal a steady upward trend in the past 15 days, with a 12.85% price change. However, the volume of trading is low, which indicates a lack of liquidity in the market, which could affect the stock's price movement.\n\nThere has been no recent news, indicating a lack of market-moving events. However, the company's financial health and operations remain strong, suggesting that the company's long-term prospects are sound.\n\nThe social media sentiment analysis shows that the overall sentiment is neutral, with no clear trend or polarity. This suggests a balanced market sentiment.\n\nConsidering all these factors, the predicted price for MSFT in the next week is $430.60, with a confidence level of Medium.\n\nRisk Factors:\n\n1. Any unexpected changes in the global economic conditions, such as a recession, could negatively impact the stock.\n2. If there are any major product launches or acquisitions, it could also affect the stock price.",
+        "sections": {
+          "summary": "",
+          "price_analysis": "",
+          "news_impact": "",
+          "sentiment_analysis": "",
+          "prediction": "$430.60",
+          "target_price": "$430.60",
+          "confidence": "",
+          "risk_factors": ""
+        },
+        "target_price": "$430.60",
+        "timestamp": "2025-05-06T00:14:36.123017"
+      }
+    },
+    "timestamp": "2025-05-06T00:14:36.123072",
+    "test_date": "2025-05-04",
+    "evaluation": {
+      "status": "success",
+      "symbol": "MSFT",
+      "test_date": "2025-05-05",
+      "prediction": {
+        "predicted_price": 430.6,
+        "target_price_raw": "$430.60"
+      },
+      "actual": {
+        "last_train_price": 385.73,
+        "actual_price": 436.17,
+        "date": "2025-05-05"
+      },
+      "metrics": {
+        "percentage_error": 1.2770250131829317,
+        "direction_correct": true
+      }
+    }
+  },
+  "GOOGL": {
+    "status": "success",
+    "prediction": {
+      "status": "success",
+      "message": "Prediction generated for GOOGL",
+      "step": 4,
+      "data": {
+        "step_name": "result",
+        "symbol": "GOOGL",
+        "user_query": "What will be the price of GOOGL tomorrow based on the data from 2025-05-04?",
+        "prediction": "[Prediction & Analysis]:\nPrediction: The price of Google (GOOGL) is expected to increase by 2-3% over the next week, with a target price of $167.00 - $167.50.\n\nAnalysis: The analysis of historical data indicates a consistent upward trend in the stock's price over the last two weeks, with a significant increase in price observed during the week of 25th April. This upward trend can be attributed to the recent positive financial performance reported by the company, which includes strong revenue growth, increased profit margins, and continued investment in innovative technologies.\n\nThe absence of recent news suggests that there are no major external factors impacting the stock's price, which could indicate a stable market sentiment towards the company. However, it is important to note that the stock's price can be volatile, and sudden changes in market sentiment could affect the stock's price.\n\nThe analysis of social media sentiment also indicates a positive sentiment towards the company, which could indicate a bullish market psychology. However, it is important to note that social media sentiment may not always accurately reflect the overall market sentiment.\n\nGiven the positive trends observed in the historical data, the absence of recent negative news, and the positive social media sentiment, it is expected that the stock's price will continue to increase over the next week. However, potential risks include the unpredictable nature of the stock market, the company's competitors' performance, and any unexpected changes in the overall market sentiment.\n\nTherefore, with a medium confidence level, the prediction for the price of Google (GOOGL) is expected to increase by 2-3% over the next week, with a target price of $167.00 - $167.50.",
+        "sections": {
+          "summary": "",
+          "price_analysis": "The analysis of historical data indicates a consistent upward trend in the stock's price over the last two weeks, with a significant increase in price observed during the week of 25th April. This upward trend can be attributed to the recent positive financial performance reported by the company, which includes strong revenue growth, increased profit margins, and continued investment in innovative technologies.",
+          "news_impact": "",
+          "sentiment_analysis": "",
+          "prediction": "The price of Google (GOOGL) is expected to increase by 2-3% over the next week, with a target price of $167.00 - $167.50.",
+          "target_price": "$167.00",
+          "confidence": "",
+          "risk_factors": ""
+        },
+        "target_price": "$167.00",
+        "timestamp": "2025-05-06T00:15:12.192383"
+      }
+    },
+    "timestamp": "2025-05-06T00:15:12.192471",
+    "test_date": "2025-05-04",
+    "evaluation": {
+      "status": "success",
+      "symbol": "GOOGL",
+      "test_date": "2025-05-05",
+      "prediction": {
+        "predicted_price": 167.0,
+        "target_price_raw": "$167.00"
+      },
+      "actual": {
+        "last_train_price": 156.31,
+        "actual_price": 164.21,
+        "date": "2025-05-05"
+      },
+      "metrics": {
+        "percentage_error": 1.6990439071920054,
+        "direction_correct": true
+      }
+    }
+  },
+  "META": {
+    "status": "error",
+    "message": "Failed to fetch stock data: Error fetching historical data: We have detected your API key as 8MINI75UXAC4F64F and our standard API rate limit is 25 requests per day. Please subscribe to any of the premium plans at https://www.alphavantage.co/premium/ to instantly remove all daily rate limits."
+  },
+  "AMZN": {
+    "status": "error",
+    "message": "Failed to fetch stock data: Error fetching historical data: We have detected your API key as 8MINI75UXAC4F64F and our standard API rate limit is 25 requests per day. Please subscribe to any of the premium plans at https://www.alphavantage.co/premium/ to instantly remove all daily rate limits."
+  }
+}
