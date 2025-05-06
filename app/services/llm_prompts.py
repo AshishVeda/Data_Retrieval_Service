@@ -67,10 +67,12 @@ Respond with the following sections:
 3. NEWS IMPACT: How recent news might affect the stock
 4. SENTIMENT ANALYSIS: What the social media sentiment indicates
 5. PREDICTION: Direct answer to the user's query "{user_query}"
-6. CONFIDENCE LEVEL: Your confidence in this prediction (Low/Medium/High) with explanation
-7. RISK FACTORS: At least 2 events or factors that could invalidate your prediction
+6. TARGET PRICE: MUST include an EXACT dollar amount (e.g., "$185.25") representing your predicted stock price
+7. CONFIDENCE LEVEL: Your confidence in this prediction (Low/Medium/High) with explanation
+8. RISK FACTORS: At least 2 events or factors that could invalidate your prediction
 
 Keep your analysis professional, nuanced and data-driven. Avoid generic advice and be specific to {symbol}.
+IMPORTANT: Always include a specific TARGET PRICE section with an exact dollar amount. This is a strict requirement.
 """
     
     return prompt 

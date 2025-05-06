@@ -125,6 +125,18 @@ def jwt_required(f):
     """Decorator to require JWT token for routes"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Skip auth if BYPASS_AUTH is set (for testing)
+        from flask import current_app
+        if current_app.config.get('BYPASS_AUTH', False):
+            # Set a test user for the request
+            request.user = {
+                'user_id': 'test_user_123',
+                'username': 'testuser',
+                'email': 'test@example.com',
+                'token_payload': {}
+            }
+            return f(*args, **kwargs)
+        
         # Get token from Authorization header
         auth_header = request.headers.get('Authorization')
         if not auth_header:

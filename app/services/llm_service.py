@@ -47,7 +47,7 @@ class LLMService:
             User Query: {user_query}
 
             Please provide:
-            1. Short-term prediction (next week)
+            1. Short-term prediction (next week) with EXACT target price value (e.g., "$185.25")
             2. Key factors influencing the prediction
             3. Potential risks to consider
             4. Confidence level in the prediction
@@ -393,14 +393,16 @@ class LLMService:
             # Extract and format historical data
             historical_data = data.get('historical', {})
             historical_summary = self._format_historical_data(historical_data)
-            
+            logger.info(f"[LLM_PROMPT] Historical Summary for {symbol}:\n{historical_summary}")
             # Extract and format news data
             news_data = data.get('news', [])
             news_summary = self._format_news_data(news_data)
+            logger.info(f"[LLM_PROMPT] News Summary for {symbol}:\n{news_summary}")
             
             # Extract and format social media data
             social_data = data.get('social', {})
             social_summary = self._format_social_data(social_data)
+            logger.info(f"[LLM_PROMPT] Social Summary for {symbol}:\n{social_summary}")
             
             # Get chat history if user_id is provided
             chat_history_text = ""
@@ -458,23 +460,30 @@ class LLMService:
             recent_dates = dates[-15:]
             recent_prices = prices[-15:]
             recent_volumes = volumes[-15:] if volumes and len(volumes) >= 15 else []
+            logger.info(f"Recent dates for historical data: {recent_dates}")
             
-            # Calculate basic statistics
-            current_price = recent_prices[-1] if recent_prices else 0
-            prev_price = recent_prices[0] if recent_prices else 0
+            # Verify date order with a specific log message
+            if len(recent_dates) >= 2:
+                logger.info(f"First two dates: {recent_dates[0]}, {recent_dates[1]}")
+                
+            # If dates are in newest-to-oldest order (as log suggests),
+            # then the current price should be the first element
+            current_price = recent_prices[0] if recent_prices else 0  # First element for newest date
+            prev_price = recent_prices[-1] if len(recent_prices) > 1 else recent_prices[0]  # Last element for oldest date
             price_change = ((current_price - prev_price) / prev_price * 100) if prev_price else 0
             
             # Calculate avg volume
             avg_volume = sum(recent_volumes) / len(recent_volumes) if recent_volumes else 0
             
             # Format the historical data summary
-            result = f"Current Price: ${current_price:.2f}\n"
+            result = f"===== HISTORICAL DATA =====\n"
+            result += f"Current Price: ${current_price:.2f}\n"
             result += f"Price Change (last 15 days): {price_change:.2f}%\n"
             result += f"Average Daily Volume: {int(avg_volume):,}\n\n"
             result += "Daily Prices (last 15 days):\n"
             
-            # Add daily price data
-            for i in range(len(recent_dates)):
+            # Add daily price data in reverse chronological order (newest first)
+            for i in range(len(recent_dates)-1, -1, -1):
                 if i < len(recent_prices):
                     date = recent_dates[i]
                     price = recent_prices[i]

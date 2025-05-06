@@ -125,9 +125,10 @@ Two automated jobs maintain data freshness:
 The application integrates with LLM APIs for natural language processing:
 
 - Sends structured prompts with assembled financial data
-- Receives detailed stock analyses and predictions
+- Receives detailed stock analyses and predictions with exact target price values
 - Processes and parses responses into structured sections (summary, prediction, price analysis, etc.)
 - Supports up to 1024 tokens in responses for comprehensive analyses
+- Ensures predictions include specific price targets rather than just percentage changes
 
 ## Troubleshooting
 
