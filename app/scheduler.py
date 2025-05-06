@@ -30,7 +30,7 @@ def daily_news_update():
             logger.error(f"[SCHEDULED-TASK] Error cleaning up old news: {str(e)}")
         
         # Get list of companies to fetch news for
-        companies = news_service.TECH_COMPANIES
+        companies = news_service.TRACKED_COMPANIES
         logger.info(f"[SCHEDULED-TASK] Updating news for {len(companies)} companies")
         
         # Track success and failures

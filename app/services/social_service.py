@@ -128,6 +128,7 @@ class SocialService:
                             'score': post.score,
                             'created_utc': post.created_utc,
                             'subreddit': post.subreddit.display_name,
+                            'author': post.author.name if hasattr(post, 'author') and hasattr(post.author, 'name') else 'Redditor',
                             'comments': comments
                         })
                         
@@ -242,6 +243,7 @@ class SocialService:
                 'score': 42,
                 'created_utc': (now - timedelta(hours=4)).timestamp(),
                 'subreddit': 'stocks',
+                'author': 'Redditor',
                 'comments': [
                     {
                         'id': f'comment_{symbol}_1_1',
@@ -264,6 +266,7 @@ class SocialService:
                 'score': 28,
                 'created_utc': (now - timedelta(days=1)).timestamp(),
                 'subreddit': 'investing',
+                'author': 'Redditor',
                 'comments': [
                     {
                         'id': f'comment_{symbol}_2_1',
@@ -286,6 +289,7 @@ class SocialService:
                 'score': 56,
                 'created_utc': (now - timedelta(days=2)).timestamp(),
                 'subreddit': 'wallstreetbets',
+                'author': 'Redditor',
                 'comments': [
                     {
                         'id': f'comment_{symbol}_3_1',

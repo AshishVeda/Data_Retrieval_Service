@@ -343,13 +343,36 @@ def fetch_social():
             
             # Take top 10
             for post in sorted_posts[:10]:
+                # Convert timestamp to readable date if available
+                created_date = ''
+                if 'created_utc' in post and post['created_utc']:
+                    try:
+                        created_date = datetime.fromtimestamp(post['created_utc']).isoformat()
+                    except Exception:
+                        pass
+                
+                # Extract author - prefer 'author' field, fall back to subreddit or 'Unknown'
+                author = post.get('author', post.get('subreddit', 'Unknown'))
+                
+                # Get sentiment polarity directly if available in that format, or from the sentiment object
+                sentiment_value = 0
+                if isinstance(post.get('sentiment'), dict):
+                    sentiment_value = post.get('sentiment', {}).get('polarity', 0)
+                else:
+                    sentiment_value = post.get('sentiment', 0)
+                
+                # Extract selftext/body content if available
+                body = ''
+                if 'selftext' in post:
+                    body = post['selftext']
+                
                 top_posts.append({
                     'title': post.get('title', 'No title'),
                     'score': post.get('score', 0),
-                    'created': post.get('created', ''),
-                    'author': post.get('author', 'Unknown'),
-                    'sentiment': post.get('sentiment', {}).get('polarity', 0),
-                    'body': post.get('body', '')[:200] + ('...' if len(post.get('body', '')) > 200 else '')  # Truncate long posts
+                    'created': created_date,
+                    'author': author,
+                    'sentiment': sentiment_value,
+                    'body': body[:200] + ('...' if len(body) > 200 else '')  # Truncate long posts
                 })
         
         # Get sentiment summary

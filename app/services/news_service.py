@@ -16,18 +16,33 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class NewsService:
-    # List of top tech companies
-    TECH_COMPANIES = [
-        "AAPL",  # Apple
-        "MSFT",  # Microsoft
-        "GOOGL", # Alphabet (Google)
-        "AMZN",  # Amazon
-        "META",  # Meta (Facebook)
-        "NVDA",  # NVIDIA
-        "TSLA",  # Tesla
-        "INTC",  # Intel
-        "AMD",   # Advanced Micro Devices
-        "IBM"    # IBM
+    # List of top companies across various sectors
+    TRACKED_COMPANIES = [
+        'AAPL',  # Apple
+        'MSFT',  # Microsoft
+        'GOOGL', # Alphabet (Google)
+        'AMZN',  # Amazon
+        'NVDA',  # NVIDIA
+        'BRKB',  # Berkshire Hathaway
+        'META',  # Meta Platforms
+        'TSLA',  # Tesla
+        'LLY',   # Eli Lilly
+        'UNH',   # UnitedHealth Group
+        'JNJ',   # Johnson & Johnson
+        'V',     # Visa
+        'JPM',   # JPMorgan Chase
+        'XOM',   # Exxon Mobil
+        'PG',    # Procter & Gamble
+        'MA',    # Mastercard
+        'HD',    # Home Depot
+        'BAC',   # Bank of America
+        'PFE',   # Pfizer
+        'KO',    # Coca-Cola
+        'CVX',   # Chevron
+        'PEP',   # PepsiCo
+        'ABBV',  # AbbVie
+        'WMT',   # Walmart
+        'COST'   # Costco
     ]
 
     def __init__(self):
@@ -148,7 +163,7 @@ class NewsService:
         """Fetch news for all tech companies"""
         try:
             all_results = []
-            for symbol in self.TECH_COMPANIES:
+            for symbol in self.TRACKED_COMPANIES:
                 result = self.get_company_news(symbol)
                 if result['status'] == 'success':
                     all_results.append({
@@ -165,7 +180,7 @@ class NewsService:
             return {
                 'status': 'success',
                 'data': all_results,
-                'message': f'News fetched for {len(self.TECH_COMPANIES)} companies'
+                'message': f'News fetched for {len(self.TRACKED_COMPANIES)} companies'
             }
         except Exception as e:
             logger.error(f"Error fetching all tech news: {str(e)}")
