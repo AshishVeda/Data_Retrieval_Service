@@ -31,11 +31,11 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t public.ecr.aws/l4k7s2p5/stocks-poc/stocks-poc:latest .
+          docker build -t public.ecr.aws/l4k7s2p5/stocks-poc:latest .
 
       - name: Push Docker image to ECR Public
         run: |
-          docker push public.ecr.aws/l4k7s2p5/stocks-poc/stocks-poc:latest
+          docker push public.ecr.aws/l4k7s2p5/stocks-poc:latest
 
       - name: Deploy CloudFormation stack
         run: |
