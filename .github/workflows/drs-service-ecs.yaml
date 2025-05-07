@@ -2,22 +2,46 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: ECS Fargate setup for stockmarket service with ALB
 
 Parameters:
-  DBHost:
+  DB_HOST:
     Type: String
-  DBUser:
+  DB_USER:
     Type: String
-  DBPassword:
+  DB_PASSWORD:
     Type: String
-  DBDatabase:
+  DB_NAME:
     Type: String
-  DBPort:
+  DB_PORT:
     Type: String
     Default: "3306"
-  AWSRegion:
+  AWS_REGION:
     Type: String
-  CognitoUserPoolId:
+  COGNITO_USER_POOL_ID:
     Type: String
-  CognitoClientId:
+  COGNITO_CLIENT_ID:
+    Type: String
+  COGNITO_CLIENT_SECRET:
+    Type: String
+  FLASK_SECRET_KEY:
+    Type: String
+  ALPHA_VANTAGE_API_KEY:
+    Type: String
+  REDDIT_CLIENT_ID:
+    Type: String
+  REDDIT_CLIENT_SECRET:
+    Type: String
+  REDDIT_USER_AGENT:
+    Type: String
+  FINNHUB_API_KEY:
+    Type: String
+  AWS_ACCESS_KEY_ID:
+    Type: String
+  AWS_SECRET_ACCESS_KEY:
+    Type: String
+  DYNAMODB_CHAT_TABLE:
+    Type: String
+  HF_TOKEN:
+    Type: String
+  API_URL:
     Type: String
   ImageURLStockMarket:
     Type: String
@@ -51,26 +75,51 @@ Resources:
             - ContainerPort: 5000
           Environment:
             - Name: DB_HOST
-              Value: !Ref DBHost
+              Value: !Ref DB_HOST
             - Name: DB_USER
-              Value: !Ref DBUser
+              Value: !Ref DB_USER
             - Name: DB_PASSWORD
-              Value: !Ref DBPassword
+              Value: !Ref DB_PASSWORD
             - Name: DB_NAME
-              Value: !Ref DBDatabase
+              Value: !Ref DB_NAME
             - Name: DB_PORT
-              Value: !Ref DBPort
+              Value: !Ref DB_PORT
             - Name: AWS_REGION
-              Value: !Ref AWSRegion
+              Value: !Ref AWS_REGION
             - Name: COGNITO_USER_POOL_ID
-              Value: !Ref CognitoUserPoolId
+              Value: !Ref COGNITO_USER_POOL_ID
             - Name: COGNITO_CLIENT_ID
-              Value: !Ref CognitoClientId
+              Value: !Ref COGNITO_CLIENT_ID
+            - Name: COGNITO_CLIENT_SECRET
+              Value: !Ref COGNITO_CLIENT_SECRET
+            - Name: FLASK_SECRET_KEY
+              Value: !Ref FLASK_SECRET_KEY
+            - Name: ALPHA_VANTAGE_API_KEY
+              Value: !Ref ALPHA_VANTAGE_API_KEY
+            - Name: REDDIT_CLIENT_ID
+              Value: !Ref REDDIT_CLIENT_ID
+            - Name: REDDIT_CLIENT_SECRET
+              Value: !Ref REDDIT_CLIENT_SECRET
+            - Name: REDDIT_USER_AGENT
+              Value: !Ref REDDIT_USER_AGENT
+            - Name: FINNHUB_API_KEY
+              Value: !Ref FINNHUB_API_KEY
+            - Name: AWS_ACCESS_KEY_ID
+              Value: !Ref AWS_ACCESS_KEY_ID
+            - Name: AWS_SECRET_ACCESS_KEY
+              Value: !Ref AWS_SECRET_ACCESS_KEY
+            - Name: DYNAMODB_CHAT_TABLE
+              Value: !Ref DYNAMODB_CHAT_TABLE
+            - Name: HF_TOKEN
+              Value: !Ref HF_TOKEN
+            - Name: API_URL
+              Value: !Ref API_URL
+
           LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-group: /ecs/stockmarket
-              awslogs-region: !Ref AWSRegion
+              awslogs-region: !Ref AWS_REGION
               awslogs-stream-prefix: ecs
 
   ALBSecurityGroup:
