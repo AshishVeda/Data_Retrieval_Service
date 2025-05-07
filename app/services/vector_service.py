@@ -166,13 +166,16 @@ class VectorService:
             results = self.news_collection.query(
                 query_texts=[query],
                 where=where_clause,
-                n_results=limit
+                n_results=limit * 2  # Request more results to account for deduplication
             )
             
             logger.info(f"VECTOR-SEARCH: Query returned {len(results['ids'][0]) if results and 'ids' in results and results['ids'] else 0} results")
 
             # Format results
             similar_news = []
+            seen_titles = set()  # Track seen titles for deduplication
+            seen_content = set()  # Track seen content for deduplication
+            
             if results and 'ids' in results and results['ids'] and len(results['ids'][0]) > 0:
                 # Get current time for filtering - use last 7 days instead of 3 to be more lenient
                 now = datetime.now()
@@ -183,6 +186,7 @@ class VectorService:
                 total_articles = len(results['ids'][0])
                 filtered_out = 0
                 processing_errors = 0
+                duplicates_removed = 0
                 
                 for i in range(len(results['ids'][0])):
                     try:
@@ -190,6 +194,7 @@ class VectorService:
                         article_id = results['ids'][0][i]
                         article_title = results['metadatas'][0][i].get('title', 'No title')
                         published_str = results['metadatas'][0][i].get('published', '')
+                        article_summary = results['metadatas'][0][i].get('summary', '')
                         
                         logger.info(f"VECTOR-SEARCH: Processing article {i+1}/{total_articles}: '{article_title[:50]}...' (published: {published_str})")
                         
@@ -219,6 +224,19 @@ class VectorService:
                             logger.info(f"VECTOR-SEARCH: Filtering out old article from {published_date.isoformat()} (cutoff: {cutoff_date.isoformat()})")
                             filtered_out += 1
                             continue
+                        
+                        # Deduplication check
+                        title_lower = article_title.lower().strip()
+                        content_lower = (article_title + " " + article_summary).lower().strip()
+                        
+                        if title_lower in seen_titles or content_lower in seen_content:
+                            logger.info(f"VECTOR-SEARCH: Skipping duplicate article: '{article_title[:50]}...'")
+                            duplicates_removed += 1
+                            continue
+                            
+                        # Add to seen sets
+                        seen_titles.add(title_lower)
+                        seen_content.add(content_lower)
                             
                         # Extract link or URL
                         link = "#"
@@ -240,17 +258,22 @@ class VectorService:
                             'symbol': results['metadatas'][0][i]['symbol'],
                             'similarity': similarity_score,
                             'link': link,
-                            'summary': results['metadatas'][0][i].get('summary', 'No summary available')
+                            'summary': article_summary
                         }
                         similar_news.append(article)
                         logger.info(f"VECTOR-SEARCH: Added article to results: '{article_title[:50]}...'")
+                        
+                        # Break if we have enough unique articles
+                        if len(similar_news) >= limit:
+                            break
+                            
                     except Exception as e:
                         processing_errors += 1
                         logger.warning(f"VECTOR-SEARCH: Error formatting article: {str(e)}")
                         continue
                 
                 # Log summary statistics
-                logger.info(f"VECTOR-SEARCH: Processing summary: Total={total_articles}, Accepted={len(similar_news)}, Filtered={filtered_out}, Errors={processing_errors}")
+                logger.info(f"VECTOR-SEARCH: Processing summary: Total={total_articles}, Accepted={len(similar_news)}, Filtered={filtered_out}, Duplicates={duplicates_removed}, Errors={processing_errors}")
                 
                 if similar_news:
                     logger.info(f"VECTOR-SEARCH: Formatted {len(similar_news)} articles for response")
@@ -344,29 +367,51 @@ class VectorService:
             now = datetime.now()
             three_days_ago = (now - timedelta(days=3)).isoformat()
 
-            # Query with time filter
+            # Query with time filter on created_utc instead of timestamp
             results = self.news_collection.get(
                 where={
                     "$and": [
                         {"symbol": symbol},
-                        {"timestamp": {"$gte": three_days_ago}}
+                        {"created_utc": {"$gte": three_days_ago}}
                     ]
                 },
-                limit=limit
+                limit=limit * 2  # Get more results to account for deduplication
             )
 
-            # Format results
+            # Format results and deduplicate
             social_data = []
-            for i in range(len(results['ids'])):
+            seen_titles = set()
+            
+            # Sort by created_utc in descending order (newest first)
+            sorted_indices = sorted(
+                range(len(results['ids'])),
+                key=lambda i: results['metadatas'][i]['created_utc'],
+                reverse=True
+            )
+
+            for i in sorted_indices:
+                title = results['metadatas'][i]['title']
+                title_lower = title.lower().strip()
+                
+                # Skip if we've seen this title before
+                if title_lower in seen_titles:
+                    continue
+                    
+                seen_titles.add(title_lower)
+                
                 social_data.append({
                     'id': results['ids'][i],
-                    'title': results['metadatas'][i]['title'],
+                    'title': title,
                     'url': results['metadatas'][i]['url'],
                     'score': results['metadatas'][i]['score'],
                     'created_utc': results['metadatas'][i]['created_utc'],
                     'sentiment': results['metadatas'][i]['sentiment'],
                     'comment_count': results['metadatas'][i]['comment_count']
                 })
+                
+                # Break if we have enough unique posts
+                if len(social_data) >= limit:
+                    break
 
             return social_data
 
