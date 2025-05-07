@@ -1,0 +1,161 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ECS Fargate setup for stockmarket service with ALB
+
+Parameters:
+  DBHost:
+    Type: String
+  DBUser:
+    Type: String
+  DBPassword:
+    Type: String
+  DBDatabase:
+    Type: String
+  DBPort:
+    Type: String
+    Default: "3306"
+  AWSRegion:
+    Type: String
+  CognitoUserPoolId:
+    Type: String
+  CognitoClientId:
+    Type: String
+  ImageURLStockMarket:
+    Type: String
+  VpcId:
+    Type: String
+  PublicSubnet1:
+    Type: String
+  PublicSubnet2:
+    Type: String
+
+Resources:
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+
+  StockMarketTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: stockmarket-task
+      Cpu: "256"
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      ExecutionRoleArn: "arn:aws:iam::303683327949:role/ecsTaskExecutionRole"
+      TaskRoleArn: "arn:aws:iam::303683327949:role/ecsTaskRole"
+      ContainerDefinitions:
+        - Name: stockmarket_service
+          Image: !Ref ImageURLStockMarket
+          Essential: true
+          PortMappings:
+            - ContainerPort: 5000
+          Environment:
+            - Name: DB_HOST
+              Value: !Ref DBHost
+            - Name: DB_USER
+              Value: !Ref DBUser
+            - Name: DB_PASSWORD
+              Value: !Ref DBPassword
+            - Name: DB_NAME
+              Value: !Ref DBDatabase
+            - Name: DB_PORT
+              Value: !Ref DBPort
+            - Name: AWS_REGION
+              Value: !Ref AWSRegion
+            - Name: COGNITO_USER_POOL_ID
+              Value: !Ref CognitoUserPoolId
+            - Name: COGNITO_CLIENT_ID
+              Value: !Ref CognitoClientId
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /ecs/stockmarket
+              awslogs-region: !Ref AWSRegion
+              awslogs-stream-prefix: ecs
+
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP traffic
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  ServiceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow ALB to talk to ECS
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5000
+          ToPort: 5000
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: stockmarket-alb
+      Scheme: internet-facing
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: stockmarket-tg
+      Port: 5000
+      Protocol: HTTP
+      VpcId: !Ref VpcId
+      TargetType: ip
+      HealthCheckPath: /ping
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      Matcher:
+        HttpCode: 200
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  ECSService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - Listener
+    Properties:
+      ServiceName: stockmarket-service
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref StockMarketTaskDefinition
+      LaunchType: FARGATE
+      DesiredCount: 1
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref ServiceSecurityGroup
+          Subnets:
+            - !Ref PublicSubnet1
+            - !Ref PublicSubnet2
+      LoadBalancers:
+        - ContainerName: stockmarket_service
+          ContainerPort: 5000
+          TargetGroupArn: !Ref TargetGroup
+
+Outputs:
+  LoadBalancerDNS:
+    Description: Public URL of your stockmarket service
+    Value: !GetAtt LoadBalancer.DNSName

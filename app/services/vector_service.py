@@ -12,8 +12,8 @@ class VectorService:
     def __init__(self):
         # Initialize ChromaDB client with persistent storage
         try:
-            # Ensure data directory exists
-            data_dir = "data/chroma"
+            # Get ChromaDB directory from environment variable or use default
+            data_dir = os.getenv('CHROMA_DB_DIR', "data/chroma")
             os.makedirs(data_dir, exist_ok=True)
             
             self.client = chromadb.PersistentClient(

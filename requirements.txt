@@ -21,3 +21,4 @@ PyJWT
 cryptography
 Flask-APScheduler==1.13.1
 pytest
+gunicorn==21.2.0
