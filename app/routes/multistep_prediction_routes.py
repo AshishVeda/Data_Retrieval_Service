@@ -205,7 +205,7 @@ def refine_with_groq(raw_llm_text):
                 {
                     "role": "system",
                     "content": (
-                        "You are a helpful assistant. Given the following instructions, respond with following analysis strictly into single line JSON and no /\n entire json should be in one line so i can use json.loads on the string. Your output should ONLY be a JSON object with these 6 fields:\n predicted_price: \n predicted_percentage_change: \n predicted_direction: Up or Down \n analysis: \n positive_developments: <2 or 3>\n potential_concerns: <2 or 3>\n Do not return anything except valid JSON. Do not write anything outside JSON format."
+                        "You are a helpful assistant. Given the following instructions, respond with following analysis strictly into single line JSON with keys and values in double quotes only and no /\n entire json should be in one line so i can use json.loads on the string. Your output should ONLY be a JSON object with these 6 fields and double quotes keys and values:\n predicted_price: \n predicted_percentage_change: \n predicted_direction: Up or Down \n analysis: \n positive_developments: <2 or 3>\n potential_concerns: <2 or 3>\n Do not return anything except valid JSON. Do not write anything outside JSON format."
                     )
                 },
                 {
@@ -234,6 +234,33 @@ def refine_with_groq(raw_llm_text):
     except Exception as e:
         print(f"[Groq JSON fallback] Error: {e}")
         return None
+
+
+def get_followup_response_from_groq(prompt: str) -> str:
+    """Sends a follow-up prompt to Groq LLM and returns a short, clean response."""
+    try:
+        chat_completion = client.chat.completions.create(
+            model="llama3-8b-8192",  # or "llama3-70b-8192" if you're on that tier
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are FinanceGPT, an expert stock analyst continuing a conversation. Use the conversation history and current question to give a short, informative response. Do NOT contradict or change any previous prediction prices you have given in the conversation history. Only answer the current question. Reply in a single paragraph. Avoid repeating the full history."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": prompt.strip()
+                }
+            ]
+        )
+
+        response_text = chat_completion.choices[0].message.content.strip()
+        return response_text
+
+    except Exception as e:
+        logging.error(f"[Groq follow-up error] {e}")
+        return "Sorry, I couldn't generate a follow-up response at this time."
 
 def cache_step_data(user_id, symbol, data):
     """Cache data between steps in the multistep prediction process
@@ -986,19 +1013,16 @@ def followup_prediction():
         - Your task is to CLARIFY and EXPAND upon previous predictions, not to revise them.
         - If asked specifically about predictions, refer to the ones already made in the previous conversation.
         
-        Format your response in a clear, conversational manner. Include:
-        - Direct answers to the query
-        - Relevant market context if appropriate
-        - Any potential caveats or uncertainties
-        - For any price predictions, ALWAYS include a section labeled "TARGET PRICE:" followed by the EXACT same dollar amount from previous predictions
+        Refer to this conversation history: 
+        <conversation history>{history_section}</conversation history>
         
-        {history_section}Current Question about {symbol}: {user_query}
+        Current Question about {symbol}: {user_query}
         
         Answer:
         """
         
         # Send the prompt directly to the LLM
-        response = generate_prediction(prompt, max_new_tokens=2048)
+        response = get_followup_response_from_groq(prompt)
         
         # Store in chat history if available (always using Cognito sub as user_id)
         try:
@@ -1015,21 +1039,13 @@ def followup_prediction():
         except Exception as chat_error:
             logger.warning(f"Could not store chat history: {str(chat_error)}")
         
-        # Try to parse the LLM response into sections
-        try:
-            response_sections = parse_llm_response(response)
-        except Exception as parse_error:
-            logger.warning(f"Could not parse LLM response: {str(parse_error)}")
-            response_sections = {'full_response': response}
             
         # Return the response without including the prompt
         return jsonify({
             'status': 'success',
             'symbol': symbol,
             'user_query': user_query,
-            'llm_response': response,
-            'sections': response_sections,
-            'target_price': response_sections.get('target_price', '')
+            'llm_response': response
         })
         
     except Exception as e:
