@@ -1,28 +1,33 @@
-FROM python:3.10-slim
+FROM python:3.9-slim
 
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    netcat-traditional \
+RUN apt-get update && apt-get install -y \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
+
+# Create directory for ChromaDB data
+RUN mkdir -p /data/chroma
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install gunicorn  # Add gunicorn for production
+# Install Python packages with retry mechanism
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt --timeout 100 --retries 3
 
-# Copy the entrypoint script
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-# Copy the rest of the application
+# Copy application code
 COPY . .
 
-# Expose the port the app runs on
+# Set environment variables
+ENV FLASK_APP=app
+ENV FLASK_ENV=production
+ENV PYTHONUNBUFFERED=1
+ENV CHROMA_DB_DIR=/data/chroma
+
+# Expose port
 EXPOSE 5000
 
-# Set the entrypoint
-ENTRYPOINT ["docker-entrypoint.sh"] 
+# Run the application
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:create_app()"] 

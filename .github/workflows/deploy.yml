@@ -1,0 +1,69 @@
+name: Build and Deploy Data Retrieval Service
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: [ubuntu-latest]
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      - name: Install AWS CLI via pip
+        run: |
+          pip install awscli --upgrade --user
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR Public
+        run: |
+          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/l4k7s2p5/stocks-poc
+
+      - name: Build Docker image
+        run: |
+          docker build -t public.ecr.aws/l4k7s2p5/stocks-poc:latest .
+
+      - name: Push Docker image to ECR Public
+        run: |
+          docker push public.ecr.aws/l4k7s2p5/stocks-poc:latest
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --template-file .github/workflows/drs-service-ecs.yaml \
+            --stack-name stocks-poc-stack \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+                FLASK_SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }} \
+                ALPHA_VANTAGE_API_KEY=${{ secrets.ALPHA_VANTAGE_API_KEY }} \
+                REDDIT_CLIENT_ID=${{ secrets.REDDIT_CLIENT_ID }} \
+                REDDIT_CLIENT_SECRET=${{ secrets.REDDIT_CLIENT_SECRET }} \
+                REDDIT_USER_AGENT=${{ secrets.REDDIT_USER_AGENT }} \
+                AWS_REGION=${{ secrets.AWS_REGION }} \
+                COGNITO_USER_POOL_ID=${{ secrets.COGNITO_USER_POOL_ID }} \
+                COGNITO_APP_CLIENT_ID=${{ secrets.COGNITO_APP_CLIENT_ID }} \
+                COGNITO_APP_CLIENT_SECRET=${{ secrets.COGNITO_APP_CLIENT_SECRET }} \
+                FINNHUB_API_KEY=${{ secrets.FINNHUB_API_KEY }} \
+                RDS_HOST=${{ secrets.RDS_HOST }} \
+                RDS_USER=${{ secrets.RDS_USER }} \
+                RDS_PASSWORD=${{ secrets.RDS_PASSWORD }} \
+                RDS_DB_NAME=${{ secrets.RDS_DB_NAME }} \
+                AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+                AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+                DYNAMODB_CHAT_TABLE=${{ secrets.DYNAMODB_CHAT_TABLE }} \
+                HF_TOKEN=${{ secrets.HF_TOKEN }} \
+                API_URL=${{ secrets.API_URL }} \
+                ImageURLStockMarket=public.ecr.aws/l4k7s2p5/stocks-poc:latest \
+                VPC_ID=${{ secrets.VPC_ID }} \
+                PUBLIC_SUBNET_1=${{ secrets.PUBLIC_SUBNET_1 }} \
+                PUBLIC_SUBNET_2=${{ secrets.PUBLIC_SUBNET_2 }}
