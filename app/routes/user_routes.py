@@ -126,6 +126,7 @@ def jwt_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         # Skip auth if BYPASS_AUTH is set (for testing)
+        
         from flask import current_app
         if current_app.config.get('BYPASS_AUTH', False):
             # Set a test user for the request
