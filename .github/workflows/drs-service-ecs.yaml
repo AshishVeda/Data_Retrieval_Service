@@ -51,6 +51,8 @@ Parameters:
     Type: String
   PublicSubnet2:
     Type: String
+  GROQ_API_KEY:
+    Type: String
 
 Resources:
 
@@ -114,6 +116,8 @@ Resources:
               Value: !Ref HF_TOKEN
             - Name: API_URL
               Value: !Ref API_URL
+            - Name: GROQ_API_KEY
+              Value: !Ref GROQ_API_KEY
 
           LogConfiguration:
             LogDriver: awslogs

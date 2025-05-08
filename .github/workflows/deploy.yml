@@ -66,4 +66,5 @@ jobs:
                 ImageURLStockMarket=public.ecr.aws/l4k7s2p5/stocks-poc:latest \
                 VPC_ID=${{ secrets.VPC_ID }} \
                 PUBLIC_SUBNET_1=${{ secrets.PUBLIC_SUBNET_1 }} \
-                PUBLIC_SUBNET_2=${{ secrets.PUBLIC_SUBNET_2 }}
+                PUBLIC_SUBNET_2=${{ secrets.PUBLIC_SUBNET_2 }} \
+                GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
