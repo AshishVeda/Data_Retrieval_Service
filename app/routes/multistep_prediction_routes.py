@@ -205,7 +205,7 @@ def refine_with_groq(raw_llm_text):
                 {
                     "role": "system",
                     "content": (
-                        "You are a helpful assistant. Given the following instructions, respond with following analysis strictly into single line JSON with keys and values in double quotes only and no /\n entire json should be in one line so i can use json.loads on the string. Your output should ONLY be a JSON object with these 6 fields and double quotes keys and values:\n predicted_price: \n predicted_percentage_change: \n predicted_direction: Up or Down \n analysis: \n positive_developments: <2 or 3>\n potential_concerns: <2 or 3>\n Do not return anything except valid JSON. Do not write anything outside JSON format."
+                        "You are a helpful assistant. Given the following instructions, respond with following analysis strictly into single line JSON with keys and values in double quotes only and no /\n entire json should be in one line so i can use json.loads on the string. Your output should ONLY be a JSON object with these 6 fields and double quotes keys and values:\n predicted_price: \n predicted_percentage_change: \n predicted_direction: Up or Down \n analysis: \n positive_developments: <2 or 3 always give in array of strings format>\n potential_concerns: <2 or 3 always give in array of strings format>\n Do not return anything except valid JSON. Do not write anything outside JSON format."
                     )
                 },
                 {
