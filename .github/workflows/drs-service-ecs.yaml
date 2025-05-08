@@ -50,6 +50,7 @@ Parameters:
   PublicSubnet1:
     Type: String
   PublicSubnet2:
+    Type: String
   GROQAPIKEY:
     Type: String
 
@@ -68,23 +69,12 @@ Resources:
       RequiresCompatibilities: [FARGATE]
       ExecutionRoleArn: "arn:aws:iam::303683327949:role/ecsTaskExecutionRole"
       TaskRoleArn: "arn:aws:iam::303683327949:role/ecsTaskRole"
-      Volumes:
-        - Name: chroma-data
-          EfsVolumeConfiguration:
-            FileSystemId: !Ref ChromaFileSystem
-            TransitEncryption: ENABLED
-            AuthorizationConfig:
-              IAM: ENABLED
       ContainerDefinitions:
         - Name: stockmarket_service
           Image: !Ref ImageURLStockMarket
           Essential: true
           PortMappings:
             - ContainerPort: 5000
-          MountPoints:
-            - SourceVolume: chroma-data
-              ContainerPath: /root/.cache/chroma
-              ReadOnly: false
           Environment:
             - Name: RDS_HOST
               Value: !Ref RDSHOST
@@ -150,17 +140,13 @@ Resources:
   ServiceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow ALB to talk to ECS and NFS for EFS
+      GroupDescription: Allow ALB to talk to ECS
       VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 5000
           ToPort: 5000
           SourceSecurityGroupId: !Ref ALBSecurityGroup
-        - IpProtocol: tcp
-          FromPort: 2049
-          ToPort: 2049
-          SourceSecurityGroupId: !Ref ServiceSecurityGroup
 
   LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -172,7 +158,6 @@ Resources:
         - !Ref PublicSubnet2
       SecurityGroups:
         - !Ref ALBSecurityGroup
-        
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -222,32 +207,6 @@ Resources:
         - ContainerName: stockmarket_service
           ContainerPort: 5000
           TargetGroupArn: !Ref TargetGroup
-
-  # Add EFS File System for ChromaDB
-  ChromaFileSystem:
-    Type: AWS::EFS::FileSystem
-    Properties:
-      FileSystemName: stocks-poc-chroma-efs
-      PerformanceMode: generalPurpose
-      Encrypted: true
-      LifecyclePolicies:
-        - TransitionToIA: AFTER_30_DAYS
-
-  ChromaMountTarget1:
-    Type: AWS::EFS::MountTarget
-    Properties:
-      FileSystemId: !Ref ChromaFileSystem
-      SubnetId: !Ref PublicSubnet1
-      SecurityGroups: 
-        - !Ref ServiceSecurityGroup
-
-  ChromaMountTarget2:
-    Type: AWS::EFS::MountTarget
-    Properties:
-      FileSystemId: !Ref ChromaFileSystem
-      SubnetId: !Ref PublicSubnet2
-      SecurityGroups: 
-        - !Ref ServiceSecurityGroup
 
 Outputs:
   LoadBalancerDNS:
