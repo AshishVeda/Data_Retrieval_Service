@@ -25,10 +25,11 @@ def parse_arguments():
     parser.add_argument('--symbols', type=str, nargs='+', default=['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META'],
                        help='List of stock symbols to run backtest for')
     
+    
     parser.add_argument('--output-dir', type=str, default='backtest_reports',
                        help='Directory to save text reports')
     
-    
+
     parser.add_argument('--results-file', type=str, 
                        help='Path to existing results file for reporting only')
     
