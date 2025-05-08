@@ -28,5 +28,7 @@ class Config:
     # LLM API Configuration
     API_URL = os.getenv('API_URL')
     HF_TOKEN = os.getenv('HF_TOKEN')
+
+    GROQ_API_KEY = os.getenv('GROQ_API_KEY')
     
     # Other configuration... 

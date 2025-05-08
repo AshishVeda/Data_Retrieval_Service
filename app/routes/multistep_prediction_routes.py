@@ -10,6 +10,15 @@ from app.services.llm_endpoint import generate_prediction
 from app.routes.finnhub_routes import FinnhubService
 from app import cache
 from app.routes.user_routes import jwt_required  # Import the jwt_required decorator
+import re
+import json
+from datetime import datetime
+from groq import Groq
+from app.config import Config
+
+client = Groq(
+    api_key=Config.GROQ_API_KEY
+)
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -146,24 +155,81 @@ def generate_prediction_from_data(user_id, data):
         llm_response = generate_prediction(prompt, max_new_tokens=2048)
         
         # Parse the LLM response
-        sections = parse_llm_response(llm_response)
+        # sections = parse_llm_response(llm_response)
         
-        return {
-            'status': 'success',
-            'data': {
-                'symbol': data['symbol'],
-                'user_query': data['user_query'],
-                'prediction': sections['prediction'],
-                'sections': sections,
-                'timestamp': datetime.now().isoformat()
+        # return {
+        #     'status': 'success',
+        #     'data': {
+        #         'symbol': data['symbol'],
+        #         'user_query': data['user_query'],
+        #         'sections': sections,
+        #         'timestamp': datetime.now().isoformat()
+        #     }
+        # }
+        refined_json = refine_with_groq(llm_response)
+
+    # 3. Fallback logic
+        if refined_json:
+            return {
+                'status': 'success',
+                'data': {
+                    'symbol': data['symbol'],
+                    'user_query': data['user_query'],
+                    'structured_output': refined_json,
+                    'timestamp': datetime.now().isoformat()
+                }
             }
-        }
+        else:
+            return {
+                'status': 'success',
+                'data': {
+                    'symbol': data['symbol'],
+                    'user_query': data['user_query'],
+                    'llm_response': refined_json,
+                    'timestamp': datetime.now().isoformat()
+                }
+            }
     except Exception as e:
         logger.error(f"Error generating prediction: {str(e)}")
         return {
             'status': 'error',
             'message': f"Error generating prediction: {str(e)}"
         }
+
+def refine_with_groq(raw_llm_text):
+    """Try to get structured JSON from Groq. Return None on failure."""
+    try:
+        logger.info(f"raw-llm-text - {raw_llm_text}")
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a helpful assistant. Given the following instructions, respond with following analysis strictly into single line JSON and no /\n entire json should be in one line so i can use json.loads on the string. Your output should ONLY be a JSON object with these 6 fields:\n predicted_price: \n predicted_percentage_change: \n predicted_direction: Up or Down \n analysis: \n positive_developments: <2 or 3>\n potential_concerns: <2 or 3>\n Do not return anything except valid JSON. Do not write anything outside JSON format."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": raw_llm_text
+                }
+            ],
+            model="llama-3.3-70b-versatile"
+        )
+
+        response_text = chat_completion.choices[0].message.content
+        logging.info(f"response from groq {response_text}")
+        cleaned_text = json.loads(response_text)
+        #parsed = json.loads(cleaned)
+        if cleaned_text:
+            return cleaned_text
+        else:
+            return response_text
+        #return json.loads(response_text)  # Will raise if it's not valid JSON
+
+    except Exception as e:
+        # Log the issue (optional)
+        print(f"[Groq JSON fallback] Error: {e}")
+        return None
 
 def cache_step_data(user_id, symbol, data):
     """Cache data between steps in the multistep prediction process
@@ -638,15 +704,16 @@ def generate_result():
         logger.info(f"Generated multi-step prompt for {symbol}")
         
         # Call LLM to generate prediction
-        llm_response = generate_prediction(prompt, max_new_tokens=2048)  # Match token limit with followup route
+        #llm_response = generate_prediction(prompt, max_new_tokens=2048)  # Match token limit with followup route
         
-        logger.info(f"Got LLM response for {symbol}")
-        
+        #logger.info(f"Got LLM response for {symbol}")
+        refined_json = refine_with_groq(prompt)
+
         # Store in chat history
         chat_history_service.store_chat(
             user_id,
             user_query,
-            llm_response,
+            refined_json,
             metadata={
                 'symbol': symbol,
                 'timestamp': datetime.now().isoformat(),
@@ -657,23 +724,31 @@ def generate_result():
         # Clear cache after successful completion
         cache.delete(cache_key)
         
-        # Construct sections from the LLM response for better frontend display
-        response_sections = parse_llm_response(llm_response)
+    
         
-        return jsonify({
-            'status': 'success',
-            'message': f'Prediction generated for {symbol}',
-            'step': 4,
-            'data': {
-                'step_name': 'result',
-                'symbol': symbol,
-                'user_query': user_query,
-                'prediction': llm_response,
-                'sections': response_sections,
-                'target_price': response_sections.get('target_price', ''),
-                'timestamp': datetime.now().isoformat()
+        
+
+    # 3. Fallback logic
+        if refined_json:
+            return {
+                'status': 'success',
+                'data': {
+                    'symbol': data['symbol'],
+                    'user_query': data['user_query'],
+                    'structured_output': refined_json,
+                    'timestamp': datetime.now().isoformat()
+                }
             }
-        })
+        else:
+            return {
+                'status': 'success',
+                'data': {
+                    'symbol': data['symbol'],
+                    'user_query': data['user_query'],
+                    'llm_response': refined_json,
+                    'timestamp': datetime.now().isoformat()
+                }
+            }
         
     except Exception as e:
         logger.error(f"Error in result generation step: {str(e)}")
@@ -684,125 +759,39 @@ def generate_result():
 
 def parse_llm_response(response):
     """Parse the LLM response into sections for structured display"""
-    try:
-        sections = {
-            'summary': '',
-            'price_analysis': '',
-            'news_impact': '',
-            'sentiment_analysis': '',
-            'prediction': '',
-            'target_price': '',
-            'confidence': '',
-            'risk_factors': ''
-        }
-        
-        # Try to extract structured sections from the response
-        lines = response.split('\n')
-        current_section = None
-        
-        # Check for the [Prediction & Analysis] format
-        pred_analysis_format = False
-        for line in lines:
-            if '[Prediction & Analysis]' in line:
-                pred_analysis_format = True
-                break
-        
-        if pred_analysis_format:
-            logger.info("Detected [Prediction & Analysis] format")
-            for line in lines:
-                line = line.strip()
-                if line.startswith('Prediction:'):
-                    sections['prediction'] = line[len('Prediction:'):].strip()
-                elif line.startswith('Analysis:'):
-                    sections['price_analysis'] = line[len('Analysis:'):].strip()
-                elif line.startswith('Target Price:'):
-                    sections['target_price'] = line[len('Target Price:'):].strip()
-                # Look for price in the text if separate target price not found
-                elif 'target price' in line.lower() or 'price target' in line.lower():
-                    import re
-                    price_match = re.search(r'\$\d+(?:\.\d+)?', line)
-                    if price_match and not sections['target_price']:
-                        sections['target_price'] = price_match.group(0)
-        else:
-            # Standard format with section headers
-            for line in lines:
-                line = line.strip()
-                
-                # Check if this is a section header
-                if line.startswith('SUMMARY:'):
-                    current_section = 'summary'
-                    sections[current_section] = line[len('SUMMARY:'):].strip()
-                elif line.startswith('PRICE ANALYSIS:'):
-                    current_section = 'price_analysis'
-                    sections[current_section] = line[len('PRICE ANALYSIS:'):].strip()
-                elif line.startswith('NEWS IMPACT:'):
-                    current_section = 'news_impact'
-                    sections[current_section] = line[len('NEWS IMPACT:'):].strip()
-                elif line.startswith('SENTIMENT ANALYSIS:'):
-                    current_section = 'sentiment_analysis'
-                    sections[current_section] = line[len('SENTIMENT ANALYSIS:'):].strip()
-                elif line.startswith('PREDICTION:'):
-                    current_section = 'prediction'
-                    sections[current_section] = line[len('PREDICTION:'):].strip()
-                elif line.startswith('TARGET PRICE:'):
-                    current_section = 'target_price'
-                    sections[current_section] = line[len('TARGET PRICE:'):].strip()
-                elif line.startswith('CONFIDENCE LEVEL:'):
-                    current_section = 'confidence'
-                    sections[current_section] = line[len('CONFIDENCE LEVEL:'):].strip()
-                elif line.startswith('RISK FACTORS:'):
-                    current_section = 'risk_factors'
-                    sections[current_section] = line[len('RISK FACTORS:'):].strip()
-                elif current_section and line:
-                    # Append this line to the current section
-                    sections[current_section] += ' ' + line
-        
-        # If target price is not found, try to extract it from the prediction or response
-        if not sections['target_price']:
-            import re
-            
-            # First check if there's a price in the prediction section
-            if sections['prediction']:
-                price_match = re.search(r'\$\d+(?:\.\d+)?', sections['prediction'])
-                if price_match:
-                    sections['target_price'] = price_match.group(0)
-            
-            # If still not found, check the entire response
-            if not sections['target_price']:
-                price_matches = re.findall(r'\$\d+(?:\.\d+)?', response)
-                if price_matches and len(price_matches) > 1:
-                    # For test_extract_target_price_from_full_response: use the second price
-                    sections['target_price'] = price_matches[1]  # Use the second price found
-                elif price_matches:
-                    sections['target_price'] = price_matches[0]  # Use the first price if only one exists
-                    
-        # Add target price to prediction if found separately but not in prediction
-        if sections['target_price'] and sections['prediction'] and sections['target_price'] not in sections['prediction']:
-            sections['prediction'] += f" (Target: {sections['target_price']})"
-        
-        # Check if any useful information was extracted
-        extracted_content = any(sections.values())
-        
-        # If no sections were populated, consider it a malformed response
-        if not extracted_content:
-            logger.info("No structured sections found, considering as malformed response")
+    def extract_block(label, text):
+        """Extracts block content for a section like [Positive Developments]"""
+        pattern = rf"\[{label}\]:?\s*(.*?)(?=\n\[|\Z)"  # Until next block or end of string
+        match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+        return match.group(1).strip() if match else ''
+
+    def extract_prediction_analysis_block(text):
+        """Handles nested Prediction & Analysis structure"""
+        pattern = r"\[Prediction & Analysis\]\s*Prediction Price:\s*(.*?)\s*Analysis:\s*(.*?)(?=\n\[|\Z)"
+        match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+        if match:
             return {
-                'full_response': response
+                "prediction_price": match.group(1).strip(),
+                "analysis": match.group(2).strip()
             }
-        
-        # For simple text with no section headers, add as summary
-        if sections['summary'] == '' and sections['prediction'] == '':
-            logger.info("No structured sections found, using full response as summary")
-            sections['summary'] = response
-        
-        return sections
-        
-    except Exception as e:
-        logger.error(f"Error parsing LLM response: {str(e)}")
-        # For test_malformed_response: Return full_response for malformed inputs
-        return {
-            'full_response': response
-        }
+        else:
+            return {"prediction_price": "", "analysis": ""}
+
+    prediction_analysis = extract_prediction_analysis_block(response)
+
+    parsed = {
+        "prediction_price": prediction_analysis["prediction_price"],
+        "analysis": prediction_analysis["analysis"],
+        "positive_developments": extract_block("Positive Developments", response),
+        "potential_concerns": extract_block("Potential Concerns", response)
+    }
+
+    # If nothing was extracted, fall back
+    if not any(parsed.values()):
+        logger.warning("No structured content parsed from response.")
+        return {"full_response": response}
+
+    return parsed
 
 def create_followup_prompt(user_id, symbol, user_query):
     """Create a prompt for follow-up questions that includes chat history
@@ -855,11 +844,12 @@ def create_followup_prompt(user_id, symbol, user_query):
     - Direct answers to the query
     - Relevant market context if appropriate
     - Any potential caveats or uncertainties
-    - For any price predictions, ALWAYS include a section labeled "TARGET PRICE:" followed by the EXACT same dollar amount from previous predictions
+    - For any price predictions, ALWAYS include a section labeled "TARGET PRICE:" followed by the EXACT same dollar amount from previous predictions.
     
     {history_section}Current Question about {symbol}: {user_query}
     
     Answer:
+    Your answer format should be as follows:\n\n[Positive Developments]:\n1. ...\n\n[Potential Concerns]:\n1. ...\n\n[Prediction Price]: ...\n[Analysis]: ...
     """
     
     return prompt
@@ -880,7 +870,6 @@ def process_followup_response(symbol, user_query, llm_response):
         sections = parse_llm_response(llm_response)
         
         # Extract the target price if available
-        target_price = sections.get('target_price', '')
         
         # Prepare the result
         result = {
@@ -889,7 +878,6 @@ def process_followup_response(symbol, user_query, llm_response):
             'user_query': user_query,
             'llm_response': llm_response,
             'sections': sections,
-            'target_price': target_price,
             'timestamp': datetime.now().isoformat()
         }
         

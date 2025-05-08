@@ -2,6 +2,7 @@
 Prompt templates for LLM interactions
 """
 from datetime import datetime
+import textwrap
 
 def get_multistep_prediction_prompt(symbol, historical_summary, news_summary, sentiment_summary, 
                                     user_query, chat_history=""):
@@ -60,19 +61,7 @@ I'll provide you with three key sources of information:
 4. Synthesize all three data sources to form a cohesive analysis
 5. Address the user's specific query directly
 
-===== REQUIRED RESPONSE FORMAT =====
-Respond with the following sections:
-1. SUMMARY: A 2-3 sentence overall assessment
-2. PRICE ANALYSIS: Key insights from the price data (with specific numbers)
-3. NEWS IMPACT: How recent news might affect the stock
-4. SENTIMENT ANALYSIS: What the social media sentiment indicates
-5. PREDICTION: Direct answer to the user's query "{user_query}"
-6. TARGET PRICE: MUST include an EXACT dollar amount (e.g., "$185.25") representing your predicted stock price
-7. CONFIDENCE LEVEL: Your confidence in this prediction (Low/Medium/High) with explanation
-8. RISK FACTORS: At least 2 events or factors that could invalidate your prediction
-
 Keep your analysis professional, nuanced and data-driven. Avoid generic advice and be specific to {symbol}.
-IMPORTANT: Always include a specific TARGET PRICE section with an exact dollar amount. This is a strict requirement.
 """
     
-    return prompt 
+    return textwrap.dedent(prompt).strip() 
