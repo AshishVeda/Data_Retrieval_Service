@@ -116,6 +116,19 @@ class UserService:
     def login(self, username, password):
         """Authenticate a user and return JWT tokens from Cognito"""
         try:
+            # Log input values for debugging
+            if not username or not password:
+                logger.error(f"Login failed: username or password missing. username={username}, password={'***' if password else None}")
+                return {
+                    'status': 'error',
+                    'message': 'Username and password are required'
+                }
+            if not self.client_id or not self.client_secret:
+                logger.error(f"Cognito client_id or client_secret missing. client_id={self.client_id}, client_secret={'***' if self.client_secret else None}")
+                return {
+                    'status': 'error',
+                    'message': 'Cognito client_id or client_secret not configured'
+                }
             response = self.client.initiate_auth(
                 ClientId=self.client_id,
                 AuthFlow='USER_PASSWORD_AUTH',
