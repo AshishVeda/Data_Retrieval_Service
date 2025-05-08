@@ -45,7 +45,7 @@ Parameters:
     Type: String
   ImageURLStockMarket:
     Type: String
-  VPCID:
+  VpcId:
     Type: String
   PUBLICSUBNET1:
     Type: String
@@ -130,7 +130,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow HTTP traffic
-      VPCID: !Ref VPCID
+      VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -141,7 +141,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow ALB to talk to ECS
-      VPCID: !Ref VPCID
+      VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 5000
@@ -165,7 +165,7 @@ Resources:
       Name: stockmarket-tg
       Port: 5000
       Protocol: HTTP
-      VPCID: !Ref VPCID
+      VpcId: !Ref VpcId
       TargetType: ip
       HealthCheckPath: /ping
       HealthCheckIntervalSeconds: 30
