@@ -90,9 +90,9 @@ Resources:
               Value: !Ref AWSREGION
             - Name: COGNITO_USER_POOL_ID
               Value: !Ref COGNITOUSERPOOLID
-            - Name: COGNITO_CLIENT_ID
+            - Name: COGNITO_APP_CLIENT_ID
               Value: !Ref COGNITOAPPCLIENTID
-            - Name: COGNITO_CLIENT_SECRET
+            - Name: COGNITO_APP_CLIENT_SECRET
               Value: !Ref COGNITOAPPCLIENTSECRET
             - Name: FLASK_SECRET_KEY
               Value: !Ref FLASKSECRETKEY
