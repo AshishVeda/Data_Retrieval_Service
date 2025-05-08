@@ -50,10 +50,7 @@ Parameters:
   PublicSubnet1:
     Type: String
   PublicSubnet2:
-    Type: String
   GROQAPIKEY:
-    Type: String
-  ChromaFileSystem:
     Type: String
 
 Resources:
@@ -230,6 +227,7 @@ Resources:
   ChromaFileSystem:
     Type: AWS::EFS::FileSystem
     Properties:
+      FileSystemName: stocks-poc-chroma-efs
       PerformanceMode: generalPurpose
       Encrypted: true
       LifecyclePolicies:
