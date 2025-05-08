@@ -2,15 +2,15 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: ECS Fargate setup for stockmarket service with ALB
 
 Parameters:
-  DB_HOST:
+  RDS_HOST:
     Type: String
-  DB_USER:
+  RDS_USER:
     Type: String
-  DB_PASSWORD:
+  RDS_PASSWORD:
     Type: String
-  DB_NAME:
+  RDS_DB_NAME:
     Type: String
-  DB_PORT:
+  RDS_PORT:
     Type: String
     Default: "3306"
   AWS_REGION:
@@ -45,7 +45,7 @@ Parameters:
     Type: String
   ImageURLStockMarket:
     Type: String
-  VpcId:
+  VPC_ID:
     Type: String
   PublicSubnet1:
     Type: String
@@ -74,16 +74,16 @@ Resources:
           PortMappings:
             - ContainerPort: 5000
           Environment:
-            - Name: DB_HOST
-              Value: !Ref DB_HOST
-            - Name: DB_USER
-              Value: !Ref DB_USER
-            - Name: DB_PASSWORD
-              Value: !Ref DB_PASSWORD
-            - Name: DB_NAME
-              Value: !Ref DB_NAME
-            - Name: DB_PORT
-              Value: !Ref DB_PORT
+            - Name: RDS_HOST
+              Value: !Ref RDS_HOST
+            - Name: RDS_USER
+              Value: !Ref RDS_USER
+            - Name: RDS_PASSWORD
+              Value: !Ref RDS_PASSWORD
+            - Name: RDS_DB_NAME
+              Value: !Ref RDS_DB_NAME
+            - Name: RDS_PORT
+              Value: !Ref RDS_PORT
             - Name: AWS_REGION
               Value: !Ref AWS_REGION
             - Name: COGNITO_USER_POOL_ID
@@ -126,7 +126,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow HTTP traffic
-      VpcId: !Ref VpcId
+      VPC_ID: !Ref VPC_ID
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -137,7 +137,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow ALB to talk to ECS
-      VpcId: !Ref VpcId
+      VPC_ID: !Ref VPC_ID
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 5000
@@ -150,8 +150,8 @@ Resources:
       Name: stockmarket-alb
       Scheme: internet-facing
       Subnets:
-        - !Ref PublicSubnet1
-        - !Ref PublicSubnet2
+        - !Ref PUBLIC_SUBNET_1
+        - !Ref PUBLIC_SUBNET_2
       SecurityGroups:
         - !Ref ALBSecurityGroup
 
@@ -161,7 +161,7 @@ Resources:
       Name: stockmarket-tg
       Port: 5000
       Protocol: HTTP
-      VpcId: !Ref VpcId
+      VPC_ID: !Ref VPC_ID
       TargetType: ip
       HealthCheckPath: /ping
       HealthCheckIntervalSeconds: 30
@@ -197,8 +197,8 @@ Resources:
           SecurityGroups:
             - !Ref ServiceSecurityGroup
           Subnets:
-            - !Ref PublicSubnet1
-            - !Ref PublicSubnet2
+            - !Ref PUBLIC_SUBNET_1
+            - !Ref PUBLIC_SUBNET_2
       LoadBalancers:
         - ContainerName: stockmarket_service
           ContainerPort: 5000
