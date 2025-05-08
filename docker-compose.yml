@@ -28,6 +28,7 @@ services:
       - RDS_DB_NAME=${RDS_DB_NAME}
       - API_URL=${API_URL}
       - HF_TOKEN=${HF_TOKEN}
+      - GROQ_API_KEY=${GROQ_API_KEY}
     volumes:
       - .:/app
     restart: always
