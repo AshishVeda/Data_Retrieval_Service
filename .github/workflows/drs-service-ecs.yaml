@@ -175,6 +175,7 @@ Resources:
         - !Ref PublicSubnet2
       SecurityGroups:
         - !Ref ALBSecurityGroup
+        
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
