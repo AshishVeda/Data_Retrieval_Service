@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_caching import Cache
 import os
@@ -64,6 +64,10 @@ def create_app():
     
     # Initialize the scheduler for background tasks
     init_scheduler(app)
+    
+    @app.route("/ping")
+    def ping():
+        return "pong", 200
     
     logger.info("Application initialized")
 
