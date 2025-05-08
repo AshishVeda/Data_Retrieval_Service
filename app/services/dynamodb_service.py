@@ -19,7 +19,7 @@ def _convert_floats_to_decimal(item):
     else:
         return item
 
-class DynamoDBService:
+class DynamoDBService: 
     def __init__(self):
         """Initialize the DynamoDB service with AWS credentials"""
         # Connect directly to AWS DynamoDB
