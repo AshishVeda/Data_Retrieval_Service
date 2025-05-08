@@ -10,9 +10,9 @@ class ChatHistoryService:
         logger.info("Chat History Service initialized")
     
     def store_chat(self, user_id, query, response, metadata=None):
-        """Store a chat interaction in history"""
+        """Store a chat interaction in history. user_id is always the Cognito sub (UUID)."""
         try:
-            # Verify the user exists in the MySQL database
+            # Verify the user exists in the MySQL database by cognito_sub
             user_exists = self._verify_user_exists(user_id)
             
             if not user_exists:
@@ -34,9 +34,9 @@ class ChatHistoryService:
             }
     
     def get_chat_history(self, user_id, limit=10):
-        """Get chat history for a user"""
+        """Get chat history for a user. user_id is always the Cognito sub (UUID)."""
         try:
-            # Verify the user exists in the MySQL database
+            # Verify the user exists in the MySQL database by cognito_sub
             user_exists = self._verify_user_exists(user_id)
             
             if not user_exists:
@@ -83,9 +83,9 @@ class ChatHistoryService:
             return "Error retrieving chat history."
     
     def _verify_user_exists(self, user_id):
-        """Verify that a user exists in the MySQL database"""
+        """Verify that a user exists in the MySQL database by cognito_sub (UUID)"""
         try:
-            result = db.query("SELECT id FROM users WHERE id = %s", (user_id,))
+            result = db.query("SELECT id FROM users WHERE cognito_sub = %s", (user_id,))
             return result and len(result) > 0
         except Exception as e:
             logger.error(f"Error verifying user existence: {str(e)}")

@@ -30,4 +30,4 @@ ENV CHROMA_DB_DIR=/data/chroma
 EXPOSE 5000
 
 # Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:create_app()"] 
+CMD ["gunicorn", "--timeout", "300", "--bind", "0.0.0.0:5000", "app:create_app()"]

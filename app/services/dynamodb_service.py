@@ -5,8 +5,19 @@ import time
 import uuid
 from datetime import datetime
 from app.config import Config
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
+
+def _convert_floats_to_decimal(item):
+    if isinstance(item, float):
+        return Decimal(str(item))
+    elif isinstance(item, dict):
+        return {k: _convert_floats_to_decimal(v) for k, v in item.items()}
+    elif isinstance(item, list):
+        return [_convert_floats_to_decimal(i) for i in item]
+    else:
+        return item
 
 class DynamoDBService:
     def __init__(self):
@@ -81,6 +92,9 @@ class DynamoDBService:
             if metadata:
                 item['metadata'] = json.dumps(metadata)
                 
+            # Convert all floats to Decimal
+            item = _convert_floats_to_decimal(item)
+            
             # Store in DynamoDB
             self.table.put_item(Item=item)
             

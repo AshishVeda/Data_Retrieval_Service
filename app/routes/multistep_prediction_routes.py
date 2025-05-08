@@ -218,16 +218,20 @@ def refine_with_groq(raw_llm_text):
 
         response_text = chat_completion.choices[0].message.content
         logging.info(f"response from groq {response_text}")
-        cleaned_text = json.loads(response_text)
-        #parsed = json.loads(cleaned)
+        # Only parse if not already a dict
+        if isinstance(response_text, dict):
+            cleaned_text = response_text
+        else:
+            try:
+                cleaned_text = json.loads(response_text)
+            except Exception as e:
+                print(f"[Groq JSON fallback] Error: {e}")
+                cleaned_text = None
         if cleaned_text:
             return cleaned_text
         else:
             return response_text
-        #return json.loads(response_text)  # Will raise if it's not valid JSON
-
     except Exception as e:
-        # Log the issue (optional)
         print(f"[Groq JSON fallback] Error: {e}")
         return None
 
@@ -695,6 +699,30 @@ def generate_result():
         
         # Generate LLM prompt using the multi-step format
         llm_service = LLMService()
+        # --- LOGGING: Fetch and log chat history for this user and symbol ---
+        try:
+            history_result = chat_history_service.get_chat_history(user_id, limit=3)
+            if history_result.get('status') == 'success' and history_result.get('data'):
+                chat_history = history_result.get('data', [])
+                logger.info(f"[RESULT ROUTE] Raw chat history entries: {chat_history}")
+                chat_history_text = ""
+                for i, entry in enumerate(chat_history):
+                    symbol_in_metadata = None
+                    if 'metadata' in entry and entry['metadata']:
+                        try:
+                            metadata = json.loads(entry['metadata'])
+                            symbol_in_metadata = metadata.get('symbol')
+                        except Exception as e:
+                            logger.warning(f"[RESULT ROUTE] Could not parse metadata: {e}")
+                    if symbol_in_metadata == symbol:
+                        chat_history_text += f"Previous Question: {entry.get('query', '')}\n"
+                        chat_history_text += f"Previous Answer: {entry.get('response', '')}\n\n"
+                logger.info(f"[RESULT ROUTE] chat_history_text: {chat_history_text}")
+            else:
+                logger.info(f"[RESULT ROUTE] No chat history found for user {user_id}")
+        except Exception as e:
+            logger.warning(f"[RESULT ROUTE] Error retrieving chat history: {str(e)}")
+        # --- END LOGGING ---
         prompt = llm_service.generate_multistep_prompt(
             data=step_data,
             user_query=user_query,
@@ -704,9 +732,6 @@ def generate_result():
         logger.info(f"Generated multi-step prompt for {symbol}")
         
         # Call LLM to generate prediction
-        #llm_response = generate_prediction(prompt, max_new_tokens=2048)  # Match token limit with followup route
-        
-        #logger.info(f"Got LLM response for {symbol}")
         refined_json = refine_with_groq(prompt)
 
         # Store in chat history
@@ -724,11 +749,7 @@ def generate_result():
         # Clear cache after successful completion
         cache.delete(cache_key)
         
-    
-        
-        
-
-    # 3. Fallback logic
+        # 3. Fallback logic
         if refined_json:
             return {
                 'status': 'success',
@@ -815,19 +836,24 @@ def create_followup_prompt(user_id, symbol, user_query):
             
             # Format chat history for the prompt
             for i, entry in enumerate(chat_history):
-                if entry.get('symbol') == symbol:  # Only include history for this symbol
+                symbol_in_metadata = None
+                if 'metadata' in entry and entry['metadata']:
+                    try:
+                        metadata = json.loads(entry['metadata'])
+                        symbol_in_metadata = metadata.get('symbol')
+                    except Exception as e:
+                        logger.warning(f"Could not parse metadata: {e}")
+                if symbol_in_metadata == symbol:
                     chat_history_text += f"Previous Question: {entry.get('query', '')}\n"
                     chat_history_text += f"Previous Answer: {entry.get('response', '')}\n\n"
     except Exception as e:
         logger.warning(f"Error retrieving chat history: {str(e)}")
         chat_history_text = "Error: Could not retrieve previous conversation context."
     
+    # Log the chat history for debugging
+    logger.info(f"Chat history text: {chat_history_text}")
     # Generate a prompt with chat history included
-    history_section = ""
-    if chat_history_text:
-        history_section = f"PREVIOUS CONVERSATION HISTORY:\n{chat_history_text}\n\n"
-    else:
-        history_section = "NOTE: There is no previous conversation context available.\n\n"
+    history_section = f"PREVIOUS CONVERSATION HISTORY:\n{chat_history_text}\n\n" if chat_history_text else ""
     
     prompt = f"""
     You are an AI financial analyst and stock market expert specializing in providing insights about publicly traded companies.
@@ -916,9 +942,10 @@ def followup_prediction():
             }), 400
             
         # Get user ID from request.user (set by the jwt_required decorator)
+        # This is always the Cognito sub (UUID) due to our new convention
         user_id = request.user['user_id']
         
-        logger.info(f"Processing follow-up prediction for {symbol}, query: '{user_query}'")
+        logger.info(f"Processing follow-up prediction for {symbol}, query: '{user_query}' (user_id: {user_id})")
         
         # Fetch user's recent chat history for context
         chat_history_text = ""
@@ -927,15 +954,24 @@ def followup_prediction():
             
             if history_result.get('status') == 'success' and history_result.get('data'):
                 chat_history = history_result.get('data', [])
-                
+                logger.info(f"Raw chat history entries: {chat_history}")
                 # Format chat history for the prompt
                 for i, entry in enumerate(chat_history):
-                    if entry.get('symbol') == symbol:  # Only include history for this symbol
+                    symbol_in_metadata = None
+                    if 'metadata' in entry and entry['metadata']:
+                        try:
+                            metadata = json.loads(entry['metadata'])
+                            symbol_in_metadata = metadata.get('symbol')
+                        except Exception as e:
+                            logger.warning(f"Could not parse metadata: {e}")
+                    if symbol_in_metadata == symbol:
                         chat_history_text += f"Previous Question: {entry.get('query', '')}\n"
                         chat_history_text += f"Previous Answer: {entry.get('response', '')}\n\n"
         except Exception as e:
             logger.warning(f"Error retrieving chat history: {str(e)}")
         
+        # Log the chat history for debugging
+        logger.info(f"Chat history text: {chat_history_text}")
         # Generate a prompt with chat history included
         history_section = f"PREVIOUS CONVERSATION HISTORY:\n{chat_history_text}\n\n" if chat_history_text else ""
         
@@ -962,9 +998,9 @@ def followup_prediction():
         """
         
         # Send the prompt directly to the LLM
-        response = generate_prediction(prompt, max_new_tokens=2048)  # Increase max tokens to prevent clipping
+        response = generate_prediction(prompt, max_new_tokens=2048)
         
-        # Store in chat history if available
+        # Store in chat history if available (always using Cognito sub as user_id)
         try:
             chat_history_service.store_chat(
                 user_id,
