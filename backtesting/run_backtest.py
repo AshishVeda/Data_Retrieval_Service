@@ -28,6 +28,7 @@ def parse_arguments():
     parser.add_argument('--output-dir', type=str, default='backtest_reports',
                        help='Directory to save text reports')
     
+    
     parser.add_argument('--results-file', type=str, 
                        help='Path to existing results file for reporting only')
     
