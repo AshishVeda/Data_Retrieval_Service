@@ -2,56 +2,56 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: ECS Fargate setup for stockmarket service with ALB
 
 Parameters:
-  RDS_HOST:
+  RDSHOST:
     Type: String
-  RDS_USER:
+  RDSUSER:
     Type: String
-  RDS_PASSWORD:
+  RDSPASSWORD:
     Type: String
-  RDS_DB_NAME:
+  RDSDBNAME:
     Type: String
-  RDS_PORT:
+  RDSPORT:
     Type: String
     Default: "3306"
-  AWS_REGION:
+  AWSREGION:
     Type: String
-  COGNITO_USER_POOL_ID:
+  COGNITOUSERPOOLID:
     Type: String
-  COGNITO_CLIENT_ID:
+  COGNITOAPPCLIENTID:
     Type: String
-  COGNITO_CLIENT_SECRET:
+  COGNITOAPPCLIENTSECRET:
     Type: String
-  FLASK_SECRET_KEY:
+  FLASKSECRETKEY:
     Type: String
-  ALPHA_VANTAGE_API_KEY:
+  ALPHAVANTAGEAPIKEY:
     Type: String
-  REDDIT_CLIENT_ID:
+  REDDITCLIENTID:
     Type: String
-  REDDIT_CLIENT_SECRET:
+  REDDITCLIENTSECRET:
     Type: String
-  REDDIT_USER_AGENT:
+  REDDITUSERAGENT:
     Type: String
-  FINNHUB_API_KEY:
+  FINNHUBAPIKEY:
     Type: String
-  AWS_ACCESS_KEY_ID:
+  AWSACCESSKEYID:
     Type: String
-  AWS_SECRET_ACCESS_KEY:
+  AWSSECRETACCESSKEY:
     Type: String
-  DYNAMODB_CHAT_TABLE:
+  DYNAMODBCHATTABLE:
     Type: String
-  HF_TOKEN:
+  HFTOKEN:
     Type: String
-  API_URL:
+  APIURL:
     Type: String
   ImageURLStockMarket:
     Type: String
-  VPC_ID:
+  VPCID:
     Type: String
-  PublicSubnet1:
+  PUBLICSUBNET1:
     Type: String
-  PublicSubnet2:
+  PUBLICSUBNET2:
     Type: String
-  GROQ_API_KEY:
+  GROQAPIKEY:
     Type: String
 
 Resources:
@@ -77,60 +77,60 @@ Resources:
             - ContainerPort: 5000
           Environment:
             - Name: RDS_HOST
-              Value: !Ref RDS_HOST
+              Value: !Ref RDSHOST
             - Name: RDS_USER
-              Value: !Ref RDS_USER
+              Value: !Ref RDSUSER
             - Name: RDS_PASSWORD
-              Value: !Ref RDS_PASSWORD
+              Value: !Ref RDSPASSWORD
             - Name: RDS_DB_NAME
-              Value: !Ref RDS_DB_NAME
+              Value: !Ref RDSDBNAME
             - Name: RDS_PORT
-              Value: !Ref RDS_PORT
+              Value: !Ref RDSPORT
             - Name: AWS_REGION
-              Value: !Ref AWS_REGION
+              Value: !Ref AWSREGION
             - Name: COGNITO_USER_POOL_ID
-              Value: !Ref COGNITO_USER_POOL_ID
+              Value: !Ref COGNITOUSERPOOLID
             - Name: COGNITO_CLIENT_ID
-              Value: !Ref COGNITO_CLIENT_ID
+              Value: !Ref COGNITOAPPCLIENTID
             - Name: COGNITO_CLIENT_SECRET
-              Value: !Ref COGNITO_CLIENT_SECRET
+              Value: !Ref COGNITOAPPCLIENTSECRET
             - Name: FLASK_SECRET_KEY
-              Value: !Ref FLASK_SECRET_KEY
+              Value: !Ref FLASKSECRETKEY
             - Name: ALPHA_VANTAGE_API_KEY
-              Value: !Ref ALPHA_VANTAGE_API_KEY
+              Value: !Ref ALPHAVANTAGEAPIKEY
             - Name: REDDIT_CLIENT_ID
-              Value: !Ref REDDIT_CLIENT_ID
+              Value: !Ref REDDITCLIENTID
             - Name: REDDIT_CLIENT_SECRET
-              Value: !Ref REDDIT_CLIENT_SECRET
+              Value: !Ref REDDITCLIENTSECRET
             - Name: REDDIT_USER_AGENT
-              Value: !Ref REDDIT_USER_AGENT
+              Value: !Ref REDDITUSERAGENT
             - Name: FINNHUB_API_KEY
-              Value: !Ref FINNHUB_API_KEY
+              Value: !Ref FINNHUBAPIKEY
             - Name: AWS_ACCESS_KEY_ID
-              Value: !Ref AWS_ACCESS_KEY_ID
+              Value: !Ref AWSACCESSKEYID
             - Name: AWS_SECRET_ACCESS_KEY
-              Value: !Ref AWS_SECRET_ACCESS_KEY
+              Value: !Ref AWSSECRETACCESSKEY
             - Name: DYNAMODB_CHAT_TABLE
-              Value: !Ref DYNAMODB_CHAT_TABLE
+              Value: !Ref DYNAMODBCHATTABLE
             - Name: HF_TOKEN
-              Value: !Ref HF_TOKEN
+              Value: !Ref HFTOKEN
             - Name: API_URL
-              Value: !Ref API_URL
+              Value: !Ref APIURL
             - Name: GROQ_API_KEY
-              Value: !Ref GROQ_API_KEY
+              Value: !Ref GROQAPIKEY
 
           LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-group: /ecs/stockmarket
-              awslogs-region: !Ref AWS_REGION
+              awslogs-region: !Ref AWSREGION
               awslogs-stream-prefix: ecs
 
   ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow HTTP traffic
-      VPC_ID: !Ref VPC_ID
+      VPCID: !Ref VPCID
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -141,7 +141,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow ALB to talk to ECS
-      VPC_ID: !Ref VPC_ID
+      VPCID: !Ref VPCID
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 5000
@@ -154,8 +154,8 @@ Resources:
       Name: stockmarket-alb
       Scheme: internet-facing
       Subnets:
-        - !Ref PUBLIC_SUBNET_1
-        - !Ref PUBLIC_SUBNET_2
+        - !Ref PUBLICSUBNET1
+        - !Ref PUBLICSUBNET2
       SecurityGroups:
         - !Ref ALBSecurityGroup
 
@@ -165,7 +165,7 @@ Resources:
       Name: stockmarket-tg
       Port: 5000
       Protocol: HTTP
-      VPC_ID: !Ref VPC_ID
+      VPCID: !Ref VPCID
       TargetType: ip
       HealthCheckPath: /ping
       HealthCheckIntervalSeconds: 30
@@ -201,8 +201,8 @@ Resources:
           SecurityGroups:
             - !Ref ServiceSecurityGroup
           Subnets:
-            - !Ref PUBLIC_SUBNET_1
-            - !Ref PUBLIC_SUBNET_2
+            - !Ref PUBLICSUBNET1
+            - !Ref PUBLICSUBNET2
       LoadBalancers:
         - ContainerName: stockmarket_service
           ContainerPort: 5000
