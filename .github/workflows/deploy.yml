@@ -64,7 +64,7 @@ jobs:
                 HFTOKEN=${{ secrets.HF_TOKEN }} \
                 APIURL=${{ secrets.API_URL }} \
                 ImageURLStockMarket=public.ecr.aws/l4k7s2p5/stocks-poc:latest \
-                VPCID=${{ secrets.VPCID }} \
-                PUBLICSUBNET1=${{ secrets.PUBLIC_SUBNET_1 }} \
-                PUBLICSUBNET2=${{ secrets.PUBLIC_SUBNET_2 }} \
+                VpcId=${{ secrets.VPCID }} \
+                PublicSubnet1=${{ secrets.PUBLIC_SUBNET_1 }} \
+                PublicSubnet2=${{ secrets.PUBLIC_SUBNET_2 }} \
                 GROQAPIKEY=${{ secrets.GROQ_API_KEY }}
