@@ -175,7 +175,7 @@ class UserService:
             return {
                 'status': 'error',
                 'message': str(e)
-            }
+            } 
     
     def _get_username_from_refresh_token(self, refresh_token):
         """Extract username from refresh token"""
