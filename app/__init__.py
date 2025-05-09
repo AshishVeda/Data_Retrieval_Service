@@ -22,7 +22,7 @@ def create_app():
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
              "allow_headers": ["Content-Type", "Authorization"],
              "expose_headers": ["Content-Range", "X-Content-Range"],
-             "supports_credentials": True
+             "supports_credentials": False
          }})
 
     # Configure Flask
