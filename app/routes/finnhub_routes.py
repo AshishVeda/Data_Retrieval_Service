@@ -21,16 +21,9 @@ class FinnhubService:
         
         # List of companies to track
         self.companies = [
-            "AAPL",  # Apple
-            "MSFT",  # Microsoft
-            "GOOGL", # Alphabet (Google)
-            "AMZN",  # Amazon
-            "META",  # Meta (Facebook)
-            "NVDA",  # NVIDIA
-            "TSLA",  # Tesla
-            "INTC",  # Intel
-            "AMD",   # Advanced Micro Devices
-            "IBM"    # IBM
+            'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'BRKB', 'META', 'TSLA',
+            'LLY', 'UNH', 'JNJ', 'V', 'JPM', 'XOM', 'PG', 'MA', 'HD', 'BAC',
+            'PFE', 'KO', 'CVX', 'PEP', 'ABBV', 'WMT', 'COST'
         ]
 
     def fetch_company_news(self, symbol, weeks=3):

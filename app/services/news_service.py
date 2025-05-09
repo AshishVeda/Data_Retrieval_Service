@@ -18,31 +18,9 @@ logger = logging.getLogger(__name__)
 class NewsService:
     # List of top companies across various sectors
     TRACKED_COMPANIES = [
-        'AAPL',  # Apple
-        'MSFT',  # Microsoft
-        'GOOGL', # Alphabet (Google)
-        'AMZN',  # Amazon
-        'NVDA',  # NVIDIA
-        'BRKB',  # Berkshire Hathaway
-        'META',  # Meta Platforms
-        'TSLA',  # Tesla
-        'LLY',   # Eli Lilly
-        'UNH',   # UnitedHealth Group
-        'JNJ',   # Johnson & Johnson
-        'V',     # Visa
-        'JPM',   # JPMorgan Chase
-        'XOM',   # Exxon Mobil
-        'PG',    # Procter & Gamble
-        'MA',    # Mastercard
-        'HD',    # Home Depot
-        'BAC',   # Bank of America
-        'PFE',   # Pfizer
-        'KO',    # Coca-Cola
-        'CVX',   # Chevron
-        'PEP',   # PepsiCo
-        'ABBV',  # AbbVie
-        'WMT',   # Walmart
-        'COST'   # Costco
+        'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'BRKB', 'META', 'TSLA',
+        'LLY', 'UNH', 'JNJ', 'V', 'JPM', 'XOM', 'PG', 'MA', 'HD', 'BAC',
+        'PFE', 'KO', 'CVX', 'PEP', 'ABBV', 'WMT', 'COST'
     ]
 
     def __init__(self):
