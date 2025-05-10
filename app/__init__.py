@@ -25,7 +25,7 @@ def create_app():
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
              "allow_headers": "*",  # Allow all headers
              "expose_headers": "*",  # Expose all headers
-             "supports_credentials": True,
+             "supports_credentials": False,
              "max_age": 3600
          }})
 
