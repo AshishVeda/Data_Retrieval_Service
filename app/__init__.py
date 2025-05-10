@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 from flask_caching import Cache
 import os
@@ -16,12 +16,39 @@ logger = logging.getLogger(__name__)
 def create_app():
     app = Flask(__name__)
     
-    # Configure CORS to properly support credentials with specific origins
-    CORS(app,
-        origins=["http://thestockai.online"],
-        allow_headers=["Content-Type", "Authorization"],
-        expose_headers=["Content-Range", "X-Content-Range"],
-        supports_credentials=True)
+    # Disable built-in CORS handling - we'll do it manually
+    # CORS(app, 
+    #      origins=["http://thestockai.online"],
+    #      allow_headers=["Content-Type", "Authorization"],
+    #      expose_headers=["Content-Range", "X-Content-Range"],
+    #      supports_credentials=True)
+    
+    # Handle CORS with explicit headers
+    @app.after_request
+    def add_cors_headers(response):
+        origin = request.headers.get('Origin')
+        if origin in ['http://thestockai.online', 'https://thestockai.online']:
+            response.headers.add('Access-Control-Allow-Origin', origin)
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+            response.headers.add('Access-Control-Expose-Headers', 'Content-Range,X-Content-Range')
+        return response
+    
+    # Handle OPTIONS requests explicitly
+    @app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
+    @app.route('/<path:path>', methods=['OPTIONS'])
+    def options_handler(path):
+        response = make_response()
+        origin = request.headers.get('Origin')
+        if origin in ['http://thestockai.online', 'https://thestockai.online']:
+            response.headers.add('Access-Control-Allow-Origin', origin)
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+            response.headers.add('Access-Control-Expose-Headers', 'Content-Range,X-Content-Range')
+            response.headers.add('Access-Control-Max-Age', '3600')
+        return response
 
     # Configure Flask
     app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here')
