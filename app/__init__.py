@@ -19,14 +19,11 @@ def create_app():
     # Configure CORS with specific origin and credentials support
     CORS(app, 
          resources={r"/*": {
-             "origins": ["http://thestockai.online", "https://thestockai.online", 
-                        "http://stockmarket-frontend-1613308311.us-east-1.elb.amazonaws.com", 
-                        "https://stockmarket-frontend-1613308311.us-east-1.elb.amazonaws.com"],
+             "origins": "*",
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
              "allow_headers": "*",  # Allow all headers
              "expose_headers": "*",  # Expose all headers
              "supports_credentials": False,
-             "max_age": 3600
          }})
 
     # Configure Flask
