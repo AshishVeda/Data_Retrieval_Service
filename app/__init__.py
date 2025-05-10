@@ -16,15 +16,31 @@ logger = logging.getLogger(__name__)
 def create_app():
     app = Flask(__name__)
     
-    # Configure CORS with specific origin and credentials support
+    # Simple CORS configuration
     CORS(app, 
          resources={r"/*": {
              "origins": "*",
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-             "allow_headers": "*",  # Allow all headers
-             "expose_headers": "*",  # Expose all headers
+             "allow_headers": "*",
+             "expose_headers": "*",
              "supports_credentials": False,
+             "send_wildcard": True,
+             "always_send": True,
+             "automatic_options": True,
+             "vary_header": True,
+             "resources": r"/*",
+             "intercept_exceptions": True,
+             "allow_credentials": False
          }})
+
+    # Add CORS headers to all responses
+    @app.after_request
+    def after_request(response):
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', '*')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'false')
+        return response
 
     # Configure Flask
     app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here')
