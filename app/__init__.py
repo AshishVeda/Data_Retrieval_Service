@@ -17,17 +17,11 @@ def create_app():
     app = Flask(__name__)
     
     # Configure CORS to properly support credentials with specific origins
-    CORS(app, 
-         origins=["http://thestockai.online", "https://thestockai.online",
-                 "http://stockmarket-frontend-1613308311.us-east-1.elb.amazonaws.com",
-                 "https://stockmarket-frontend-1613308311.us-east-1.elb.amazonaws.com",
-                 "http://ec2-54-85-135-204.compute-1.amazonaws.com",
-                 "https://ec2-54-85-135-204.compute-1.amazonaws.com"],
-         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-         allow_headers="*", 
-         expose_headers="*", 
-         supports_credentials=True,
-         max_age=3600)
+    CORS(app,
+        origins=["http://thestockai.online"],
+        allow_headers=["Content-Type", "Authorization"],
+        expose_headers=["Content-Range", "X-Content-Range"],
+        supports_credentials=True)
 
     # Configure Flask
     app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here')
