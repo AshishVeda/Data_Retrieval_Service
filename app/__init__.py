@@ -19,7 +19,6 @@ def create_app():
     # Simpler CORS configuration - apply globally with default settings
     CORS(app, 
          origins="*", 
-         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          allow_headers="*", 
          expose_headers="*", 
          supports_credentials=False)
