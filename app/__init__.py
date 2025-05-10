@@ -16,12 +16,18 @@ logger = logging.getLogger(__name__)
 def create_app():
     app = Flask(__name__)
     
-    # Simpler CORS configuration - apply globally with default settings
+    # Configure CORS to properly support credentials with specific origins
     CORS(app, 
-         origins="*", 
+         origins=["http://thestockai.online", "https://thestockai.online",
+                 "http://stockmarket-frontend-1613308311.us-east-1.elb.amazonaws.com",
+                 "https://stockmarket-frontend-1613308311.us-east-1.elb.amazonaws.com",
+                 "http://ec2-54-85-135-204.compute-1.amazonaws.com",
+                 "https://ec2-54-85-135-204.compute-1.amazonaws.com"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          allow_headers="*", 
          expose_headers="*", 
-         supports_credentials=False)
+         supports_credentials=True,
+         max_age=3600)
 
     # Configure Flask
     app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here')
