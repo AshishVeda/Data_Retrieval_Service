@@ -144,14 +144,14 @@ def jwt_required(f):
                 'status': 'error',
                 'message': 'Authorization header is missing'
             }), 401
-        
+            
         parts = auth_header.split()
         if len(parts) != 2 or parts[0].lower() != 'bearer':
             return jsonify({
                 'status': 'error',
                 'message': 'Authorization header must be in format "Bearer token"'
             }), 401
-        
+            
         token = parts[1]
         
         # Verify token
@@ -161,7 +161,7 @@ def jwt_required(f):
                 'status': 'error',
                 'message': 'Invalid or expired token'
             }), 401
-        
+            
         # Use 'user_id' from payload if present, else fallback to 'sub'
         user_id = payload.get('user_id') or payload.get('sub')
         logger.info(f"jwt_required: Using user_id: {user_id}")
