@@ -14,6 +14,7 @@ import re
 import json
 from datetime import datetime
 from groq import Groq
+import requests  # Add this import for HTTP requests
 from app.config import Config
 
 client = Groq(
@@ -170,7 +171,28 @@ def generate_prediction_from_data(user_id, data):
 
     # 3. Fallback logic
         if refined_json:
-            return {
+            # Calculate predicted price based on current price and percentage change from LLM
+            if current_price_data and 'currentPrice' in current_price_data:
+                current_price = current_price_data['currentPrice']
+                percentage_change = 0.0
+                
+                # Try to extract percentage change from LLM response
+                if isinstance(refined_json, dict) and 'predicted_percentage_change' in refined_json:
+                    try:
+                        # Remove % sign if present and convert to float
+                        percentage_str = str(refined_json['predicted_percentage_change']).replace('%', '')
+                        percentage_change = float(percentage_str) / 100.0
+                        
+                        # Calculate the predicted price and update it in the LLM response
+                        recalculated_price = round(current_price * (1 + percentage_change), 2)
+                        logger.info(f"Recalculated predicted price for {symbol}: {recalculated_price} based on current price {current_price} and percentage change {percentage_change * 100}%")
+                        
+                        # Update the predicted price in the LLM response
+                        refined_json['predicted_price'] = str(recalculated_price)
+                    except (ValueError, TypeError) as e:
+                        logger.error(f"Error calculating predicted price: {str(e)}")
+            
+            response_data = {
                 'status': 'success',
                 'data': {
                     'symbol': data['symbol'],
@@ -179,8 +201,18 @@ def generate_prediction_from_data(user_id, data):
                     'timestamp': datetime.now().isoformat()
                 }
             }
+            
+            # Add current price to response if available, otherwise use dummy price
+            if current_price_data:
+                response_data['data']['currentPrice'] = current_price_data['currentPrice']
+            else:
+                # Use a dummy price when current price is not available
+                response_data['data']['currentPrice'] = 100.00
+                logger.warning(f"Using dummy price for {symbol} as current price data is not available")
+                
+            return response_data
         else:
-            return {
+            response_data = {
                 'status': 'success',
                 'data': {
                     'symbol': data['symbol'],
@@ -189,6 +221,16 @@ def generate_prediction_from_data(user_id, data):
                     'timestamp': datetime.now().isoformat()
                 }
             }
+            
+            # Add current price to response if available, otherwise use dummy price
+            if current_price_data:
+                response_data['data']['currentPrice'] = current_price_data['currentPrice']
+            else:
+                # Use a dummy price when current price is not available
+                response_data['data']['currentPrice'] = 100.00
+                logger.warning(f"Using dummy price for {symbol} as current price data is not available")
+                
+            return response_data
     except Exception as e:
         logger.error(f"Error generating prediction: {str(e)}")
         return {
@@ -776,9 +818,51 @@ def generate_result():
         # Clear cache after successful completion
         cache.delete(cache_key)
         
+        # Fetch current price from the API
+        current_price_data = None
+        try:
+            # Get the JWT token from the request
+            auth_header = request.headers.get('Authorization')
+            
+            # Set up headers with authentication
+            headers = {}
+            if auth_header:
+                headers['Authorization'] = auth_header
+            
+            current_price_url = f"{Config.CURRENT_PRICE_API_URL}?ticker={symbol}"
+            current_price_response = requests.get(current_price_url, headers=headers)
+            if current_price_response.status_code == 200:
+                current_price_data = current_price_response.json()
+                logger.info(f"Retrieved current price for {symbol}: {current_price_data}")
+            else:
+                logger.warning(f"Failed to retrieve current price for {symbol}: {current_price_response.status_code}")
+        except Exception as e:
+            logger.error(f"Error fetching current price for {symbol}: {str(e)}")
+        
         # 3. Fallback logic
         if refined_json:
-            return {
+            # Calculate predicted price based on current price and percentage change from LLM
+            if current_price_data and 'currentPrice' in current_price_data:
+                current_price = current_price_data['currentPrice']
+                percentage_change = 0.0
+                
+                # Try to extract percentage change from LLM response
+                if isinstance(refined_json, dict) and 'predicted_percentage_change' in refined_json:
+                    try:
+                        # Remove % sign if present and convert to float
+                        percentage_str = str(refined_json['predicted_percentage_change']).replace('%', '')
+                        percentage_change = float(percentage_str) / 100.0
+                        
+                        # Calculate the predicted price and update it in the LLM response
+                        recalculated_price = round(current_price * (1 + percentage_change), 2)
+                        logger.info(f"Recalculated predicted price for {symbol}: {recalculated_price} based on current price {current_price} and percentage change {percentage_change * 100}%")
+                        
+                        # Update the predicted price in the LLM response
+                        refined_json['predicted_price'] = str(recalculated_price)
+                    except (ValueError, TypeError) as e:
+                        logger.error(f"Error calculating predicted price: {str(e)}")
+            
+            response_data = {
                 'status': 'success',
                 'data': {
                     'symbol': data['symbol'],
@@ -787,8 +871,18 @@ def generate_result():
                     'timestamp': datetime.now().isoformat()
                 }
             }
+            
+            # Add current price to response if available, otherwise use dummy price
+            if current_price_data:
+                response_data['data']['currentPrice'] = current_price_data['currentPrice']
+            else:
+                # Use a dummy price when current price is not available
+                response_data['data']['currentPrice'] = 100.00
+                logger.warning(f"Using dummy price for {symbol} as current price data is not available")
+                
+            return response_data
         else:
-            return {
+            response_data = {
                 'status': 'success',
                 'data': {
                     'symbol': data['symbol'],
@@ -797,6 +891,16 @@ def generate_result():
                     'timestamp': datetime.now().isoformat()
                 }
             }
+            
+            # Add current price to response if available, otherwise use dummy price
+            if current_price_data:
+                response_data['data']['currentPrice'] = current_price_data['currentPrice']
+            else:
+                # Use a dummy price when current price is not available
+                response_data['data']['currentPrice'] = 100.00
+                logger.warning(f"Using dummy price for {symbol} as current price data is not available")
+                
+            return response_data
         
     except Exception as e:
         logger.error(f"Error in result generation step: {str(e)}")

@@ -31,4 +31,7 @@ class Config:
 
     GROQ_API_KEY = os.getenv('GROQ_API_KEY')
     
+    # Current Price API Configuration
+    CURRENT_PRICE_API_URL = os.getenv('CURRENT_PRICE_API_URL', 'http://stockmarket-alb-1487408875.us-east-1.elb.amazonaws.com/current-price')
+    
     # Other configuration... 

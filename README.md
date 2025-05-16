@@ -1,141 +1,178 @@
 # Stock Analysis Application
 
-A Flask-based application for stock analysis, news fetching, and sentiment analysis.
+A comprehensive Flask-based application for stock analysis, prediction, and backtesting using historical data, news sentiment, and social media analysis powered by LLM technology.
 
-## Features
+## Project Overview
 
-- Historical stock data retrieval using Alpha Vantage API
-- News aggregation from various sources
-- Reddit sentiment analysis
-- User authentication with AWS Cognito
-- Portfolio management with MySQL database
+This application provides stock market analysis and predictions by combining multiple data sources:
 
-## Docker Setup
+- Historical stock price data from financial APIs
+- News articles with semantic search capabilities
+- Social media sentiment analysis from Reddit
+- LLM-powered predictions with specific price targets
+- Backtesting framework to validate prediction accuracy
+
+The system uses a multistep approach to gather data, process it through specialized services, and generate detailed stock predictions with confidence scores and price targets.
+
+## Key Features
+
+- **Historical Data Analysis**: Retrieves and processes stock price history
+- **News Aggregation**: Collects news from various sources with semantic relevance
+- **Reddit Sentiment Analysis**: Analyzes social media sentiment for stocks
+- **User Authentication**: Secure login with AWS Cognito
+- **Portfolio Management**: Track and manage stock portfolios
+- **Multistep Prediction API**: Structured workflow for comprehensive analysis
+- **Backtesting Framework**: Validate prediction models using historical data
+
+## Multistep Prediction API
+
+The application uses a structured multistep API approach for generating predictions:
+
+1. **Historical Data** (`/api/prediction/multistep/historical`): 
+   - Fetches 3 weeks of price history for the target stock
+   - Processes and caches data for 15 minutes
+
+2. **News Analysis** (`/api/prediction/multistep/news`): 
+   - Uses semantic search to find relevant news articles
+   - Falls back to direct API calls if semantic search returns insufficient results
+   - Analyzes sentiment in retrieved articles
+
+3. **Social Media Analysis** (`/api/prediction/multistep/socialmedia`): 
+   - Retrieves and analyzes Reddit sentiment for the stock
+   - Calculates aggregate sentiment metrics
+
+4. **Final Prediction** (`/api/prediction/multistep/result`): 
+   - Combines all data sources into a comprehensive dataset
+   - Processes through LLM for detailed analysis
+   - Returns structured prediction with price targets
+
+5. **Follow-up Questions** (`/api/prediction/multistep/followup`): 
+   - Processes contextual follow-up queries about predictions
+   - Uses previous context for more accurate responses
+
+## Semantic Search
+
+The application uses ChromaDB for vector-based semantic search:
+
+- **Document Embedding**: News articles are embedded and stored in a vector database
+- **Query Processing**: User queries are transformed into vector embeddings
+- **Similarity Matching**: Retrieves articles most semantically relevant to queries
+- **Fallback Mechanisms**: Uses direct API calls when semantic search returns insufficient results
+- **Data Retention**: Automatically cleans up articles older than the configured retention period
+
+Implementation details:
+- Uses persistent storage with fallback to in-memory when needed
+- Employs cosine similarity for matching
+- Handles deduplication of similar content
+- Supports filtering by stock symbol and time range
+
+## LLM Integration
+
+The system leverages Large Language Models for advanced analysis:
+
+- **Structured Prompts**: Creates detailed prompts with historical data, news, and sentiment
+- **Context Preservation**: Maintains conversation context for follow-up questions
+- **Response Parsing**: Extracts structured data from LLM responses
+- **Specific Predictions**: Ensures predictions include exact price targets
+- **Confidence Scoring**: Provides confidence levels for predictions
+- **Response Refinement**: Uses additional LLM pass to structure and improve initial responses
+
+The application supports:
+- Configurable token limits for comprehensive analysis
+- Fallback mechanisms for handling API failures
+- Caching to reduce redundant API calls
+
+## Backtesting Framework
+
+A comprehensive backtesting framework validates prediction accuracy:
+
+- Uses historical data from previous weeks as test data
+- Makes predictions using data that excludes the test period
+- Utilizes news and sentiment data from before the test period
+- Compares percentage differences between actual and predicted values
+- Generates detailed reports on prediction accuracy
+
+## Setup Steps
 
 ### Prerequisites
 
-- Docker and Docker Compose installed on your system
-- AWS Cognito credentials (for user authentication)
-- Alpha Vantage API key (for stock data)
-- Reddit API credentials (for sentiment analysis)
-- Finnhub API key (for financial news)
+- Python 3.8+
+- Docker and Docker Compose (for containerized deployment)
+- Required API keys:
+  - Alpha Vantage (stock data)
+  - Reddit API (social sentiment)
+  - Finnhub (financial news)
+  - LLM API key (Groq, OpenAI, etc.)
+  - AWS Cognito credentials (user authentication)
 
-### Environment Variables
+### Installation
 
-Copy the `.env.example` file to `.env` and fill in your API keys and credentials:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/stock-analysis-app.git
+   cd stock-analysis-app
+   ```
 
-```bash
-cp .env.example .env
-```
+2. Create and activate a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
-Then edit the `.env` file with your specific credentials.
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-### Running with Docker Compose
+4. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys and configuration
+   ```
+
+### Running the Application
+
+#### Local Development
+
+1. Start the Flask application:
+   ```bash
+   python run.py
+   ```
+   
+2. The application will be available at http://localhost:5000
+
+#### Docker Deployment
 
 1. Build and start the containers:
+   ```bash
+   docker-compose up -d
+   ```
 
-```bash
-docker-compose up -d
-```
+2. The application will be available at http://localhost:5001
 
-2. Check the logs to ensure everything is running correctly:
+### Running Backtests
 
-```bash
-docker-compose logs -f
-```
+To validate the prediction model:
 
-3. The application will be available at http://localhost:5001
+1. Navigate to the backtesting directory:
+   ```bash
+   cd backtesting
+   ```
 
-### Development Mode
+2. Run the backtesting script:
+   ```bash
+   python run_backtest.py
+   ```
 
-The Docker setup is configured for development by default, with code hot-reloading enabled.
+3. View results in the generated JSON file in the backtest_reports directory.
 
-### Production Deployment
+## Contributing
 
-For production deployment, update the `docker-compose.yml` file:
-
-```yaml
-environment:
-  - FLASK_ENV=production
-```
-
-## API Endpoints
-
-### User Authentication
-
-- `POST /api/users/register` - Register a new user
-- `POST /api/users/login` - Log in a user
-- `POST /api/users/logout` - Log out a user
-
-### Stock Data
-
-- `GET /api/stocks/historical/{symbol}` - Get historical stock data
-- `GET /api/stocks/company/{symbol}` - Get company profile
-
-### News and Sentiment
-
-- `GET /api/news/fetch-all` - Fetch news for all symbols
-- `GET /api/news/{symbol}` - Fetch news for a specific symbol
-- `GET /api/social/{symbol}` - Get social media sentiment for a symbol
-
-### Predictions
-
-- `POST /api/prediction/query` - Get stock predictions based on user query
-
-## Data Retrieval Service
-
-The data retrieval system is a core component that utilizes several specialized services to gather and process financial information.
-
-### VectorService
-
-The VectorService is responsible for semantic search and document storage:
-
-- **Semantic Search**: Utilizes ChromaDB to perform vector similarity searches for news articles related to specific stocks. Each article is embedded and stored for efficient retrieval.
-- **Article Management**: Stores and indexes news articles with metadata for up to 7 days.
-- **Data Cleanup**: Automatically removes articles older than the configured retention period (3 days by default).
-
-```bash
-# Example API call that uses semantic search
-curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{"symbol":"MSFT","user_query":"What is the outlook for Microsoft stock next week?"}' \
-  http://localhost:5001/api/prediction/multistep/news
-```
-
-### Multistep Prediction API
-
-The multistep prediction workflow retrieves data in discrete steps:
-
-1. **Historical Data** (`/api/prediction/multistep/historical`): Fetches 3 weeks of price history.
-2. **News Articles** (`/api/prediction/multistep/news`): Retrieves relevant news using semantic search with fallback to direct API.
-3. **Social Media Analysis** (`/api/prediction/multistep/socialmedia`): Analyzes Reddit sentiment for the stock.
-4. **Final Prediction** (`/api/prediction/multistep/result`): Combines all data sources for a comprehensive analysis.
-5. **Follow-up Questions** (`/api/prediction/multistep/followup`): Handles contextual follow-up queries about stocks.
-
-Each step uses cached data from previous steps with a 15-minute TTL.
-
-### Scheduled Data Updates
-
-Two automated jobs maintain data freshness:
-
-- **Daily News Cleanup (6:45 AM)**: Removes news articles older than 3 days from the database.
-- **Daily News Update (7:00 AM)**: Fetches fresh articles for tracked stocks and indexes them in the vector database.
-
-### LLM Integration
-
-The application integrates with LLM APIs for natural language processing:
-
-- Sends structured prompts with assembled financial data
-- Receives detailed stock analyses and predictions with exact target price values
-- Processes and parses responses into structured sections (summary, prediction, price analysis, etc.)
-- Supports up to 1024 tokens in responses for comprehensive analyses
-- Ensures predictions include specific price targets rather than just percentage changes
-
-## Troubleshooting
-
-- **Database connection issues**: Check that the MySQL container is running properly.
-- **API errors**: Verify your API keys in the `.env` file.
-- **Permission issues**: The `docker-entrypoint.sh` script should be executable.
-- **Port conflicts**: If port 5001 is also in use, you can change it in the docker-compose.yml file.
+1. Fork the repository
+2. Create your feature branch: `git checkout -b feature/new-feature`
+3. Commit your changes: `git commit -am 'Add new feature'`
+4. Push to the branch: `git push origin feature/new-feature`
+5. Submit a pull request
 
 ## License
 
